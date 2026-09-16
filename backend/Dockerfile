@@ -4,11 +4,6 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     tesseract-ocr-hin \
-    tesseract-ocr-mar \
-    tesseract-ocr-tam \
-    tesseract-ocr-tel \
-    tesseract-ocr-ben \
-    tesseract-ocr-guj \
     libgl1-mesa-glx \
     libglib2.0-0 \
     libsm6 \
