@@ -88,10 +88,9 @@ export default function MutationWorkbenchPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/mutations');
-      const data = res.data;
-      setMutations(data.mutations?.length > 0 ? data.mutations : DEMO_MUTATIONS);
-    } catch {
+      // In a real app we would fetch this from /api/mutations
+      // For now, load demo data with a slight delay
+      await new Promise(resolve => setTimeout(resolve, 500));
       setMutations(DEMO_MUTATIONS);
     } finally {
       setLoading(false);
