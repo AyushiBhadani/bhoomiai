@@ -1,14 +1,8 @@
 FROM python:3.11-slim
 
-# Install system dependencies for OpenCV and Tesseract
+# Install minimal system dependencies
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
-    tesseract-ocr-hin \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
