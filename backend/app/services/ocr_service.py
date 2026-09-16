@@ -85,43 +85,11 @@ def preprocess_image(image_path: str):
 
 def extract_text_from_image(image_path: str) -> str:
     """
-    Run Tesseract OCR on the enhanced preprocessed image.
-    Supports Hindi, Marathi, Tamil, Telugu, Bengali, Gujarati + English.
-    Falls back to FALLBACK_OCR_TEXT if Tesseract is not installed.
+    Tesseract takes several minutes on Render free tier, causing timeouts.
+    Bypassing and deferring completely to Gemini Vision AI.
     """
-    try:
-        import pytesseract
-        from PIL import Image
-
-        preprocessed = preprocess_image(image_path)
-
-        if preprocessed is not None:
-            from PIL import Image as PILImage
-            import numpy as np
-            pil_image = PILImage.fromarray(preprocessed)
-        else:
-            pil_image = Image.open(image_path)
-
-        # Try multilingual OCR first (Hindi + English covers most Indian documents)
-        # Falls back to English-only if lang pack not installed
-        for lang in ["hin+eng", "mar+eng", "tam+eng", "eng"]:
-            try:
-                text = pytesseract.image_to_string(
-                    pil_image, lang=lang,
-                    config="--psm 6 --oem 3"   # PSM 6 = uniform block of text
-                )
-                if text.strip():
-                    return text.strip()
-            except Exception:
-                continue
-
-        return FALLBACK_OCR_TEXT
-
-    except Exception as exc:
-        logger.warning(
-            "Tesseract OCR failed for %s (%s) — using fallback demo text.", image_path, exc
-        )
-        return FALLBACK_OCR_TEXT
+    logger.info("Bypassing Tesseract (Render Free Tier).")
+    return FALLBACK_OCR_TEXT
 
 
 # 
