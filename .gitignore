@@ -1,0 +1,20 @@
+# BhoomiAI — Intelligent Land Record Digitization System
+# Smart India Hackathon 2026 | Problem Statement SIH26018
+
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.db
+*.sqlite
+*.sqlite3
+uploads/
+.env
+*.log
+node_modules/
+.next/
+.env.local
+.turbo/
+*.tif
+*.tiff
+*.pdf

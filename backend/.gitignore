@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+.venv/
+env/
+.env
+*.env.local
+
+# Database — don't commit real data
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads — user files shouldn't be in git
+uploads/
+*.pdf
+*.tiff
+*.tif
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
