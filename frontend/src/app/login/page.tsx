@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -223,9 +223,39 @@ export default function LoginPage() {
             <p>officer@bhoomi.gov.in / <span className="font-mono">password</span></p>
             <p>verifier@bhoomi.gov.in / <span className="font-mono">password</span></p>
           </div>
+
+          {/* Citizen Portal separator */}
+          <div className="mt-6 relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200" />
+            </div>
+            <div className="relative flex justify-center text-xs text-slate-400 uppercase tracking-wider">
+              <span className="bg-white px-3">or</span>
+            </div>
+          </div>
+
+          {/* Citizen Portal Button */}
+          <a
+            href="/citizen/login"
+            className="mt-4 flex items-center justify-between w-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl px-4 py-3 transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-lg">🏠</span>
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-emerald-800">Citizen Portal</p>
+                <p className="text-xs text-emerald-600">Track your land record digitization requests</p>
+              </div>
+            </div>
+            <svg className="w-4 h-4 text-emerald-500 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
         </div>
       </div>
     </div>
   );
 }
+
 

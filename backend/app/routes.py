@@ -23,12 +23,12 @@ import logging
 from datetime import datetime
 from typing import Optional, Any, List
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import User, Document, ExtractedRecord, Parcel, AuditLog
+from app.models import User, Document, ExtractedRecord, Parcel, AuditLog, CitizenProfile
 from app.schemas import (
     UserCreate,
     UserLogin,
@@ -1369,4 +1369,205 @@ def translate_record(
         "labels": labels,
         "original": rd,
         "translated_values": translated_values,
+    }
+
+# ============================================================
+#  CITIZEN PORTAL ROUTES
+# ============================================================
+
+@router.post("/citizen/register", tags=["Citizen"])
+async def citizen_register(
+    full_name: str = Form(...),
+    email: str = Form(...),
+    phone: str = Form(""),
+    password: str = Form(...),
+    id_proof_type: str = Form(...),
+    id_proof: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """Register a new citizen account with ID proof upload."""
+    from app.models import CitizenProfile
+
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    safe = f"idproof_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{id_proof.filename}"
+    proof_path = os.path.join(UPLOAD_DIR, safe)
+    with open(proof_path, "wb") as f:
+        shutil.copyfileobj(id_proof.file, f)
+
+    user = User(
+        email=email,
+        hashed_password=get_password_hash(password),
+        role="citizen",
+        is_active=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    profile = CitizenProfile(
+        user_id=user.id,
+        full_name=full_name,
+        phone=phone,
+        id_proof_type=id_proof_type,
+        id_proof_filepath=proof_path,
+        id_proof_verified=False,
+    )
+    db.add(profile)
+    db.commit()
+
+    token = create_access_token({"sub": user.email})
+    return {"access_token": token, "token_type": "bearer",
+            "user": {"id": user.id, "email": user.email, "role": user.role,
+                     "full_name": full_name}}
+
+
+@router.post("/citizen/login", tags=["Citizen"])
+def citizen_login(credentials: UserLogin, db: Session = Depends(get_db)):
+    """Citizen-only login endpoint."""
+    user = db.query(User).filter(User.email == credentials.email).first()
+    if not user or not verify_password(credentials.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if user.role != "citizen":
+        raise HTTPException(status_code=403, detail="This login is for citizens only")
+    token = create_access_token({"sub": user.email})
+    return {"access_token": token, "token_type": "bearer",
+            "user": {"id": user.id, "email": user.email, "role": user.role}}
+
+
+@router.get("/citizen/me", tags=["Citizen"])
+def citizen_me(current_user: User = Depends(get_current_active_user),
+               db: Session = Depends(get_db)):
+    """Return citizen profile for the logged-in citizen."""
+    from app.models import CitizenProfile
+    profile = db.query(CitizenProfile).filter(CitizenProfile.user_id == current_user.id).first()
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "role": current_user.role,
+        "full_name": profile.full_name if profile else "",
+        "phone": profile.phone if profile else "",
+        "id_proof_type": profile.id_proof_type if profile else "",
+        "id_proof_verified": profile.id_proof_verified if profile else False,
+    }
+
+
+@router.post("/citizen/documents/upload", tags=["Citizen"])
+async def citizen_upload_document(
+    file: UploadFile = File(...),
+    note: str = Form(""),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Citizen uploads their land document for digitization and verification."""
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    safe_filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+    file_path = os.path.join(UPLOAD_DIR, safe_filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    document = Document(
+        filename=file.filename,
+        filepath=file_path,
+        status="Submitted",
+        uploader_id=current_user.id,
+        source="citizen",
+        citizen_id=current_user.id,
+        citizen_note=note,
+        upload_date=datetime.utcnow(),
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    # Run the OCR + Gemini pipeline
+    ext = os.path.splitext(file.filename)[1].lower()
+    raw_text = ocr_service.extract_text_from_image(file_path) if ext != ".pdf" else ocr_service.extract_text_from_pdf(file_path)
+
+    gemini_fields = {}
+    try:
+        from app.services import gemini_service
+        if ext in (".jpg", ".jpeg", ".png", ".tiff", ".tif", ".bmp"):
+            gemini_fields = gemini_service.gemini_extract_from_image(file_path)
+        elif ext == ".pdf":
+            gemini_fields = gemini_service.gemini_extract_from_pdf_page(file_path, 0)
+        if not gemini_fields and raw_text:
+            gemini_fields = gemini_service.gemini_correct_ocr(raw_text)
+    except Exception as e:
+        logger.warning("Gemini skipped: %s", e)
+
+    ocr_fields = ocr_service.extract_fields_from_text(raw_text)
+    merged = {**ocr_fields, **{k: v for k, v in gemini_fields.items() if v}}
+    confidence = ocr_service.calculate_confidence(merged)
+
+    record = ExtractedRecord(
+        document_id=document.id,
+        ocr_raw_text=raw_text,
+        confidence_scores=confidence,
+        validation_status="Pending",
+        **{k: merged.get(k) for k in [
+            "owner_name","survey_number","khasra_number","khata_number",
+            "area","village","tehsil","district","state","plot_number",
+            "land_classification","ownership_type","mutation_number","registration_number"
+        ]},
+    )
+    db.add(record)
+
+    errors = validation_service.validate_record(record, None, db)
+    record.validation_errors = errors
+    record.validation_status = "Passed" if not errors else "Needs Review"
+    document.status = "Needs Verification"
+    db.commit()
+    db.refresh(document)
+
+    return {"id": document.id, "filename": document.filename,
+            "status": document.status, "record": row_to_dict(record)}
+
+
+@router.get("/citizen/documents", tags=["Citizen"])
+def citizen_list_documents(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Return only this citizen's submitted documents."""
+    docs = db.query(Document).filter(Document.citizen_id == current_user.id).order_by(Document.upload_date.desc()).all()
+    result = []
+    for d in docs:
+        rec = d.records[0] if d.records else None
+        result.append({
+            "id": d.id,
+            "filename": d.filename,
+            "status": d.status,
+            "upload_date": d.upload_date.isoformat() if d.upload_date else None,
+            "note": d.citizen_note,
+            "record_id": rec.id if rec else None,
+            "owner_name": rec.owner_name if rec else None,
+            "survey_number": rec.survey_number if rec else None,
+            "village": rec.village if rec else None,
+        })
+    return result
+
+
+@router.get("/citizen/documents/{doc_id}/status", tags=["Citizen"])
+def citizen_document_status(
+    doc_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Real-time status for a specific citizen document."""
+    doc = db.query(Document).filter(
+        Document.id == doc_id, Document.citizen_id == current_user.id
+    ).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    rec = doc.records[0] if doc.records else None
+    return {
+        "id": doc.id,
+        "filename": doc.filename,
+        "status": doc.status,
+        "upload_date": doc.upload_date.isoformat() if doc.upload_date else None,
+        "note": doc.citizen_note,
+        "record": row_to_dict(rec) if rec else None,
     }
