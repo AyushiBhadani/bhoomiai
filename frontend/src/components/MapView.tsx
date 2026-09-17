@@ -1,7 +1,14 @@
-﻿'use client';
+'use client';
 
-import React, { useState, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, Polygon, Marker, InfoWindow } from '@react-google-maps/api';
+/**
+ * MapView – uses React-Leaflet + OpenStreetMap tiles.
+ * Completely free, no API key required.
+ */
+
+import React, { useEffect } from 'react';
+import { MapContainer, TileLayer, Polygon, Marker, Popup, useMap } from 'react-leaflet';
+import type { LatLngTuple } from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import type { Parcel } from '@/lib/types';
 
 export interface MapViewProps {
@@ -10,144 +17,125 @@ export interface MapViewProps {
   onSelect?: (parcel: Parcel) => void;
 }
 
-const CENTER = { lat: 27.1, lng: 78.0 };
-const ZOOM = 13;
+// Fix default Leaflet marker icons broken by webpack
+function fixLeafletIcons() {
+  if (typeof window === 'undefined') return;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const L = require('leaflet');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  });
+}
 
-const containerStyle = {
-  width: '100%',
-  height: '100%'
+// Generate a stable polygon around a parcel's lat/lng
+function makePolygon(lat: number, lng: number, size = 0.003): LatLngTuple[] {
+  return [
+    [lat + size, lng - size],
+    [lat + size, lng + size],
+    [lat - size, lng + size],
+    [lat - size, lng - size],
+  ];
+}
+
+// Spread demo parcels across Agra region
+const DEMO_COORDS: Record<string, [number, number]> = {
+  '124/7': [27.1767, 78.0081],
+  '45A':   [27.1902, 78.0241],
+  '99/3B': [27.1630, 77.9980],
+  '200/1': [27.1840, 78.0350],
+  '312':   [27.1700, 78.0180],
 };
 
-function jitter(base: number, range = 0.005) {
-  return base + (Math.random() - 0.5) * range;
+function getCoords(p: Parcel): [number, number] {
+  if (p.geometry_geojson?.coordinates) {
+    const c = p.geometry_geojson.coordinates;
+    if (Array.isArray(c) && c.length === 2) return [c[1] as number, c[0] as number];
+  }
+  return DEMO_COORDS[p.survey_number] ?? [27.1767 + Math.random() * 0.02, 78.0081 + Math.random() * 0.02];
+}
+
+// Auto-fit map bounds to show all parcels
+function FitBounds({ coords }: { coords: [number, number][] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (coords.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const L = require('leaflet');
+      map.fitBounds(L.latLngBounds(coords), { padding: [40, 40] });
+    }
+  }, [map, coords]);
+  return null;
 }
 
 export default function MapView({ parcels, highlightSurvey, onSelect }: MapViewProps) {
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
-  });
+  useEffect(() => { fixLeafletIcons(); }, []);
 
-  const [activeParcel, setActiveParcel] = useState<Parcel | null>(null);
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const onLoad = useCallback(function callback(map: google.maps.Map) {
-    // Map is loaded
-  }, []);
-
-  const onUnmount = useCallback(function callback() {
-    setActiveParcel(null);
-  }, []);
-
-  if (!isLoaded) {
-    return (
-      <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
-        <div className="text-slate-500 font-medium text-sm animate-pulse">Loading Google Maps...</div>
-      </div>
-    );
-  }
-
-  // If the key is empty/invalid, show a helpful message instead of a broken map
-  if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY === 'YOUR_KEY_HERE') {
-    return (
-      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 p-6 text-center">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 max-w-sm">
-          <h3 className="text-lg font-bold text-slate-800 mb-2">Google Maps Key Required</h3>
-          <p className="text-slate-500 text-sm mb-4">
-            The map is ready, but it needs a Google Maps API key to render. 
-            Please add your API key to <code className="bg-slate-100 px-1 py-0.5 rounded text-xs">.env.local</code> 
-            as <code className="bg-slate-100 px-1 py-0.5 rounded text-xs text-emerald-600">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const center: LatLngTuple = [27.1767, 78.0081];
+  const coords = parcels.map(getCoords);
 
   return (
-    <GoogleMap
-      mapContainerStyle={containerStyle}
-      center={CENTER}
-      zoom={ZOOM}
-      onLoad={onLoad}
-      onUnmount={onUnmount}
-      options={{
-        disableDefaultUI: false,
-        zoomControl: true,
-        mapTypeControl: true,
-        streetViewControl: false,
-      }}
+    <MapContainer
+      center={center}
+      zoom={13}
+      style={{ width: '100%', height: '100%' }}
+      className="z-0"
     >
-      {parcels.map((parcel) => {
-        const highlighted = parcel.survey_number === highlightSurvey;
-        
-        const options = {
-          fillColor: highlighted ? '#fef08a' : '#d1fae5',
-          fillOpacity: highlighted ? 0.7 : 0.4,
-          strokeColor: highlighted ? '#f59e0b' : '#10b981',
-          strokeWeight: highlighted ? 3 : 2,
-        };
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
 
-        if (parcel.geometry_geojson) {
-          // Parse GeoJSON to Google Maps LatLng
-          try {
-            const geojson = parcel.geometry_geojson as any;
-            if (geojson.type === 'Polygon' && geojson.coordinates) {
-              const paths = geojson.coordinates[0].map((coord: number[]) => ({
-                lat: coord[1],
-                lng: coord[0]
-              }));
-              
-              return (
-                <Polygon
-                  key={`poly-${parcel.id}`}
-                  paths={paths}
-                  options={options}
-                  onClick={() => {
-                    setActiveParcel(parcel);
-                    onSelect?.(parcel);
-                  }}
-                />
-              );
-            }
-          } catch (e) {
-            console.error("Failed to parse GeoJSON for parcel", parcel.id);
-          }
-        }
+      {coords.length > 0 && <FitBounds coords={coords} />}
 
-        // Fallback marker if no valid geometry
-        const pos = { lat: jitter(CENTER.lat), lng: jitter(CENTER.lng) };
+      {parcels.map((parcel, i) => {
+        const [lat, lng] = coords[i];
+        const isHighlighted = parcel.survey_number === highlightSurvey;
+        const polygon = makePolygon(lat, lng);
+
         return (
-          <Marker
-            key={`marker-${parcel.id}`}
-            position={pos}
-            onClick={() => {
-              setActiveParcel(parcel);
-              onSelect?.(parcel);
-            }}
-          />
+          <React.Fragment key={parcel.id ?? parcel.survey_number}>
+            {/* Shaded polygon for the parcel boundary */}
+            <Polygon
+              positions={polygon}
+              pathOptions={{
+                color: isHighlighted ? '#f59e0b' : '#10b981',
+                fillColor: isHighlighted ? '#fde68a' : '#d1fae5',
+                fillOpacity: 0.45,
+                weight: isHighlighted ? 3 : 2,
+              }}
+              eventHandlers={{
+                click: () => onSelect?.(parcel),
+              }}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <p className="font-bold text-slate-800">Survey #{parcel.survey_number}</p>
+                  <p className="text-slate-500">{parcel.village}</p>
+                  <p className="text-slate-600 mt-1">Area: <strong>{parcel.area} Ha</strong></p>
+                </div>
+              </Popup>
+            </Polygon>
+
+            {/* Centre marker */}
+            <Marker
+              position={[lat, lng]}
+              eventHandlers={{ click: () => onSelect?.(parcel) }}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <p className="font-bold text-slate-800">Survey #{parcel.survey_number}</p>
+                  <p className="text-slate-500">{parcel.village}</p>
+                  <p className="text-slate-600 mt-1">Area: <strong>{parcel.area} Ha</strong></p>
+                </div>
+              </Popup>
+            </Marker>
+          </React.Fragment>
         );
       })}
-
-      {activeParcel && (
-        <InfoWindow
-          position={
-            activeParcel.geometry_geojson 
-            ? CENTER // Approximated center for info window if polygon
-            : { lat: CENTER.lat, lng: CENTER.lng }
-          }
-          onCloseClick={() => setActiveParcel(null)}
-        >
-          <div className="p-1 min-w-[150px]">
-            <strong className="block text-sm font-bold text-slate-800 mb-1">
-              Survey #{activeParcel.survey_number}
-            </strong>
-            <p className="text-xs text-slate-600 mb-0.5">Village: {activeParcel.village}</p>
-            <p className="text-xs text-slate-600">
-              Area: {activeParcel.area?.toLocaleString()} m²
-            </p>
-          </div>
-        </InfoWindow>
-      )}
-    </GoogleMap>
+    </MapContainer>
   );
 }
