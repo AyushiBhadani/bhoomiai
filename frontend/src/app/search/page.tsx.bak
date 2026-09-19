@@ -1,4 +1,5 @@
 'use client';
+// Voice search + multilingual support added
 
 /**
  * Intelligent Land Record Search — instant search across all records
@@ -11,7 +12,7 @@ import {
   Search, MapPin, FileText, User, Hash,
   ExternalLink, Loader2, AlertCircle, Filter,
   CheckCircle, XCircle, Clock, Zap, X,
-  ChevronRight, Database, Mic, MicOff,
+  ChevronRight, Database,
 } from 'lucide-react';
 
 import api from '@/lib/api';
@@ -60,55 +61,6 @@ export default function SearchPage() {
   const [error, setError]   = useState<string | null>(null);
   const [searched, setSearched] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // Voice search state
-  const [listening, setListening] = useState(false);
-  const [voiceLang, setVoiceLang] = useState('hi-IN');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognitionRef = useRef<any>(null);
-
-  const VOICE_LANGS = [
-    { code: 'hi-IN', label: '🇮🇳 Hindi' },
-    { code: 'en-IN', label: '🇮🇳 English' },
-    { code: 'mr-IN', label: 'Marathi' },
-    { code: 'ta-IN', label: 'Tamil' },
-    { code: 'te-IN', label: 'Telugu' },
-    { code: 'bn-IN', label: 'Bengali' },
-    { code: 'gu-IN', label: 'Gujarati' },
-    { code: 'kn-IN', label: 'Kannada' },
-    { code: 'pa-IN', label: 'Punjabi' },
-  ];
-
-  const startVoiceSearch = () => {
-    if (typeof window === 'undefined') return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const w = window as any;
-    const SpeechRecognitionAPI = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!SpeechRecognitionAPI) {
-      alert('Voice search is not supported in this browser. Please use Chrome or Edge.');
-      return;
-    }
-    const recognition = new SpeechRecognitionAPI();
-    recognition.lang = voiceLang;
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.onstart = () => setListening(true);
-    recognition.onend = () => setListening(false);
-    recognition.onerror = () => setListening(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setQuery(transcript);
-      doSearch(transcript, field);
-    };
-    recognitionRef.current = recognition;
-    recognition.start();
-  };
-
-  const stopVoiceSearch = () => {
-    recognitionRef.current?.stop();
-    setListening(false);
-  };
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -162,82 +114,42 @@ export default function SearchPage() {
           <p className="text-slate-500 text-sm">Full-text search across all extracted fields in the database.</p>
 
           {/* Search bar */}
-          <form onSubmit={handleSubmit} className="mt-5 space-y-2">
-            {/* Voice language selector */}
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              <Mic size={12} className="text-emerald-500" />
-              <span>Voice language:</span>
-              <select
-                value={voiceLang}
-                onChange={e => setVoiceLang(e.target.value)}
-                className="border border-slate-200 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:border-emerald-400 text-slate-700"
-              >
-                {VOICE_LANGS.map(l => (
-                  <option key={l.code} value={l.code}>{l.label}</option>
-                ))}
-              </select>
-              {listening && (
-                <span className="flex items-center gap-1 text-red-600 font-medium animate-pulse">
-                  <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
-                  Listening...
-                </span>
+          <form onSubmit={handleSubmit} className="mt-5 flex gap-3">
+            <div className="flex-1 relative">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search by survey number, owner name, village, khasra…"
+                className="w-full pl-10 pr-10 py-3 border border-slate-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 rounded-xl text-sm bg-white focus:outline-none transition-all"
+              />
+              {query && (
+                <button type="button" onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <X size={15} />
+                </button>
               )}
             </div>
 
-            <div className="flex gap-3">
-              <div className="flex-1 relative">
-                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  placeholder="Search by survey number, owner name, village, khasra… or use 🎤 voice"
-                  className={`w-full pl-10 pr-20 py-3 border focus:ring-2 focus:ring-emerald-100 rounded-xl text-sm bg-white focus:outline-none transition-all ${
-                    listening ? 'border-red-400 focus:border-red-400 bg-red-50' : 'border-slate-200 focus:border-emerald-400'
-                  }`}
-                />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                  {query && (
-                    <button type="button" onClick={clearSearch} className="text-slate-400 hover:text-slate-600 p-1">
-                      <X size={14} />
-                    </button>
-                  )}
-                  {/* Mic button */}
-                  <button
-                    type="button"
-                    onClick={listening ? stopVoiceSearch : startVoiceSearch}
-                    title={listening ? 'Stop listening' : `Search by voice in ${VOICE_LANGS.find(l => l.code === voiceLang)?.label}`}
-                    className={`p-1.5 rounded-lg transition-all ${
-                      listening
-                        ? 'bg-red-100 text-red-600 hover:bg-red-200 animate-pulse'
-                        : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                    }`}
-                  >
-                    {listening ? <MicOff size={15} /> : <Mic size={15} />}
-                  </button>
-                </div>
-              </div>
+            <select
+              value={field}
+              onChange={e => setField(e.target.value)}
+              className="border border-slate-200 rounded-xl px-3 py-3 text-sm bg-white focus:outline-none focus:border-emerald-400 text-slate-700 pr-8"
+            >
+              {FIELD_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
 
-              <select
-                value={field}
-                onChange={e => setField(e.target.value)}
-                className="border border-slate-200 rounded-xl px-3 py-3 text-sm bg-white focus:outline-none focus:border-emerald-400 text-slate-700 pr-8"
-              >
-                {FIELD_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-
-              <button
-                type="submit"
-                disabled={!query.trim() || loading}
-                className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-all flex items-center gap-2 shadow-sm"
-              >
-                {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
-                Search
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={!query.trim() || loading}
+              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-all flex items-center gap-2 shadow-sm"
+            >
+              {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+              Search
+            </button>
           </form>
 
           {/* Quick search tags */}
@@ -397,3 +309,4 @@ export default function SearchPage() {
     </div>
   );
 }
+

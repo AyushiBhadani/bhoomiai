@@ -1571,3 +1571,61 @@ def citizen_document_status(
         "note": doc.citizen_note,
         "record": row_to_dict(rec) if rec else None,
     }
+
+# ============================================================
+#  FRAUD DETECTION ROUTES
+# ============================================================
+
+@router.get("/fraud/alerts", tags=["Fraud Detection"])
+def get_fraud_alerts(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user),
+):
+    """Return all documents with non-zero fraud risk scores, ordered by severity."""
+    docs = (
+        db.query(Document)
+        .filter(Document.source != None)
+        .order_by(Document.upload_date.desc())
+        .limit(200)
+        .all()
+    )
+    alerts = []
+    for d in docs:
+        rec = d.records[0] if d.records else None
+        if not rec:
+            continue
+        try:
+            from app.services import fraud_service
+            analysis = fraud_service.analyze_document(d, rec, db)
+        except Exception as e:
+            logger.warning("Fraud scan failed for doc %s: %s", d.id, e)
+            continue
+        if analysis["risk_score"] > 0:
+            alerts.append({
+                "document_id": d.id,
+                "filename": d.filename,
+                "status": d.status,
+                "upload_date": d.upload_date.isoformat() if d.upload_date else None,
+                "risk_score": analysis["risk_score"],
+                "risk_level": analysis["risk_level"],
+                "risk_flags": analysis["risk_flags"],
+                "owner_name": rec.owner_name,
+                "survey_number": rec.survey_number,
+            })
+    alerts.sort(key=lambda x: x["risk_score"], reverse=True)
+    return alerts
+
+
+@router.post("/fraud/scan/{doc_id}", tags=["Fraud Detection"])
+def scan_document_fraud(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user),
+):
+    """Run fraud analysis on a specific document and return the result."""
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    rec = doc.records[0] if doc.records else None
+    from app.services import fraud_service
+    return fraud_service.analyze_document(doc, rec, db)
