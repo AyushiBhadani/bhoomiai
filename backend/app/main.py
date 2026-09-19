@@ -1,4 +1,4 @@
-﻿"""
+"""
 FastAPI application entry point for the BhoomiAI Land Record System.
 
 Startup tasks:
@@ -82,18 +82,23 @@ def _seed_demo_data():
             )
             db.add(officer)
 
-        # Seed sample reference parcels
+        # Seed sample reference parcels with land classification + circle rates
         sample_parcels = [
-            {"survey_number": "124/7",  "village": "Rampur",   "area": 2.5},
-            {"survey_number": "45A",    "village": "Sitapur",  "area": 1.8},
-            {"survey_number": "99/3B",  "village": "Fatehpur", "area": 5.0},
-            {"survey_number": "200/1",  "village": "Agra",     "area": 0.75},
-            {"survey_number": "312",    "village": "Mathura",  "area": 12.3},
+            {"survey_number": "124/7",  "village": "Rampur",    "district": "Agra",    "tehsil": "Etmadpur",  "area": 2.5,  "land_classification": "Agricultural",             "circle_rate_per_sqm": 450},
+            {"survey_number": "45A",    "village": "Sitapur",   "district": "Agra",    "tehsil": "Agra",      "area": 1.8,  "land_classification": "Residential",              "circle_rate_per_sqm": 12000},
+            {"survey_number": "99/3B",  "village": "Fatehpur",  "district": "Agra",    "tehsil": "Fatehabad", "area": 5.0,  "land_classification": "Agricultural (Irrigated)", "circle_rate_per_sqm": 600},
+            {"survey_number": "200/1",  "village": "Agra",      "district": "Agra",    "tehsil": "Agra",      "area": 0.75, "land_classification": "Commercial",               "circle_rate_per_sqm": 45000},
+            {"survey_number": "312",    "village": "Mathura",   "district": "Mathura", "tehsil": "Mathura",   "area": 12.3, "land_classification": "Agricultural",             "circle_rate_per_sqm": 380},
+            {"survey_number": "412/2",  "village": "Vrindavan", "district": "Mathura", "tehsil": "Mathura",   "area": 0.5,  "land_classification": "Industrial",               "circle_rate_per_sqm": 8500},
+            {"survey_number": "58/C",   "village": "Aligarh",   "district": "Aligarh", "tehsil": "Koil",      "area": 3.2,  "land_classification": "Dry Crop Land",            "circle_rate_per_sqm": 320},
+            {"survey_number": "77",     "village": "Firozabad", "district": "Firozabad","tehsil": "Firozabad", "area": 2.1,  "land_classification": "Government",               "circle_rate_per_sqm": None},
+            {"survey_number": "19/B",   "village": "Tundla",    "district": "Firozabad","tehsil": "Tundla",    "area": 8.7,  "land_classification": "Forest",                   "circle_rate_per_sqm": None},
+            {"survey_number": "303",    "village": "Hathras",   "district": "Hathras", "tehsil": "Hathras",   "area": 1.4,  "land_classification": "Residential",              "circle_rate_per_sqm": 6500},
         ]
         for p_data in sample_parcels:
             if not db.query(Parcel).filter(Parcel.survey_number == p_data["survey_number"]).first():
                 db.add(Parcel(**p_data))
-                logger.info("Seeded parcel: %s", p_data["survey_number"])
+                logger.info("Seeded parcel: %s (%s)", p_data["survey_number"], p_data.get("land_classification"))
 
         db.commit()
     except Exception as exc:

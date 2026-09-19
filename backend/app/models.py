@@ -76,7 +76,11 @@ class Parcel(Base):
     id = Column(Integer, primary_key=True, index=True)
     survey_number = Column(String, unique=True, index=True)
     village = Column(String)
+    district = Column(String, nullable=True)
+    tehsil = Column(String, nullable=True)
     area = Column(Float)
+    land_classification = Column(String, nullable=True)  # Agricultural, Industrial, Residential, etc.
+    circle_rate_per_sqm = Column(Float, nullable=True)   # Government circle rate ₹/sq.m
     geometry_geojson = Column(JSON, nullable=True)
 
 class AuditLog(Base):

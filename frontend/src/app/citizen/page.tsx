@@ -1,519 +1,459 @@
 'use client';
 
 /**
- * BhoomiAI Citizen Self-Service Portal
- * ─────────────────────────────────────────────────────────────────────────────
- * Public-facing, no login required.
- * Features:
- *  - Search in 8 Indian languages (Bhashini + Gemini translation)  
- *  - Voice search via browser Web Speech API
- *  - RoR / EC download
- *  - Blockchain verification badge
- *  - Record of Rights with mutation history
- *  - Multilingual field labels (changes based on selected language)
+ * BhoomiAI — Universal Citizen Land Record Portal
+ * One search bar. 22 Indian languages. Type OR speak — it understands automatically.
  */
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  Search, MapPin, FileText, Hash, Download, Shield,
-  Globe, Mic, MicOff, ChevronRight, CheckCircle,
-  AlertCircle, Loader2, X, Volume2, ExternalLink,
-  Clock, User, Star, Landmark,
+  Search, FileText, Download, Shield,
+  Mic, MicOff, ChevronRight, CheckCircle,
+  Loader2, X, Globe2, Landmark, User, Hash,
+  MapPin, AlertCircle, Clock, TrendingUp,
 } from 'lucide-react';
 import api from '@/lib/api';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Language Configuration
-// ─────────────────────────────────────────────────────────────────────────────
-const LANGUAGES = [
-  { code: 'en', name: 'English',    native: 'English',     flag: '🇬🇧' },
-  { code: 'hi', name: 'Hindi',      native: 'हिंदी',         flag: '🇮🇳' },
-  { code: 'mr', name: 'Marathi',    native: 'मराठी',         flag: '🇮🇳' },
-  { code: 'ta', name: 'Tamil',      native: 'தமிழ்',          flag: '🇮🇳' },
-  { code: 'te', name: 'Telugu',     native: 'తెలుగు',          flag: '🇮🇳' },
-  { code: 'kn', name: 'Kannada',    native: 'ಕನ್ನಡ',           flag: '🇮🇳' },
-  { code: 'bn', name: 'Bengali',    native: 'বাংলা',            flag: '🇮🇳' },
-  { code: 'gu', name: 'Gujarati',   native: 'ગુજરાતી',          flag: '🇮🇳' },
-  { code: 'or', name: 'Odia',       native: 'ଓଡ଼ିଆ',            flag: '🇮🇳' },
-  { code: 'pa', name: 'Punjabi',    native: 'ਪੰਜਾਬੀ',           flag: '🇮🇳' },
-  { code: 'ml', name: 'Malayalam',  native: 'മലയാളം',           flag: '🇮🇳' },
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+
+// All 22 scheduled Indian languages for auto-recognition
+const ALL_LANG_CODES = [
+  'hi-IN','en-IN','mr-IN','ta-IN','te-IN','kn-IN','ml-IN',
+  'bn-IN','gu-IN','pa-IN','or-IN','as-IN','ur-IN','sa-IN',
+  'ne-IN','sd-IN','kok-IN','mai-IN','doi-IN','mni-IN','sat-IN','ks-IN',
 ];
 
-// UI strings per language
-const UI_TEXT: Record<string, Record<string, string>> = {
-  en: {
-    title: 'Find Your Land Record',
-    subtitle: 'Search by Survey Number, Owner Name, or Village — in your language',
-    placeholder: 'Search by Survey No, Owner Name or Village...',
-    searchBtn: 'Search Records',
-    voiceTip: 'Speak your search query',
-    found: 'records found',
-    notFound: 'No records found for',
-    ownerLabel: 'Owner',
-    surveyLabel: 'Survey No',
-    villageLabel: 'Village',
-    areaLabel: 'Area',
-    downloadRoR: 'Download RoR',
-    downloadEC: 'Download EC',
-    viewDetails: 'View Details',
-    blockchainVerified: 'Blockchain Verified',
-    filterAll: 'All Fields',
-    filterSurvey: 'Survey Number',
-    filterOwner: 'Owner Name',
-    filterVillage: 'Village',
-  },
-  hi: {
-    title: 'अपना भू-अभिलेख खोजें',
-    subtitle: 'सर्वे नंबर, मालिक का नाम, या ग्राम से खोजें — अपनी भाषा में',
-    placeholder: 'सर्वे नं, मालिक का नाम या ग्राम खोजें...',
-    searchBtn: 'रिकॉर्ड खोजें',
-    voiceTip: 'बोलकर खोजें',
-    found: 'रिकॉर्ड मिले',
-    notFound: 'कोई रिकॉर्ड नहीं मिला',
-    ownerLabel: 'मालिक',
-    surveyLabel: 'सर्वे नं',
-    villageLabel: 'ग्राम',
-    areaLabel: 'क्षेत्रफल',
-    downloadRoR: 'RoR डाउनलोड',
-    downloadEC: 'EC डाउनलोड',
-    viewDetails: 'विवरण देखें',
-    blockchainVerified: 'ब्लॉकचेन सत्यापित',
-    filterAll: 'सभी क्षेत्र',
-    filterSurvey: 'सर्वे नंबर',
-    filterOwner: 'मालिक का नाम',
-    filterVillage: 'ग्राम',
-  },
-  mr: {
-    title: 'आपला भूमी अभिलेख शोधा',
-    subtitle: 'सर्व्हे क्रमांक, मालकाचे नाव किंवा ग्रामाने शोधा',
-    placeholder: 'सर्व्हे क्र., मालकाचे नाव किंवा ग्राम शोधा...',
-    searchBtn: 'अभिलेख शोधा',
-    voiceTip: 'बोलून शोधा',
-    found: 'अभिलेख सापडले',
-    notFound: 'कोणतेही अभिलेख सापडले नाहीत',
-    ownerLabel: 'मालक',
-    surveyLabel: 'सर्व्हे क्र',
-    villageLabel: 'ग्राम',
-    areaLabel: 'क्षेत्रफळ',
-    downloadRoR: 'RoR डाउनलोड',
-    downloadEC: 'EC डाउनलोड',
-    viewDetails: 'तपशील पहा',
-    blockchainVerified: 'ब्लॉकचेन सत्यापित',
-    filterAll: 'सर्व क्षेत्रे',
-    filterSurvey: 'सर्व्हे क्रमांक',
-    filterOwner: 'मालकाचे नाव',
-    filterVillage: 'ग्राम',
-  },
-  ta: {
-    title: 'உங்கள் நில பதிவை தேடுங்கள்',
-    subtitle: 'சர்வே எண், உரிமையாளர் பெயர் அல்லது கிராமம் மூலம் தேடுங்கள்',
-    placeholder: 'சர்வே எண், பெயர் அல்லது கிராமம் தேடுங்கள்...',
-    searchBtn: 'பதிவுகளை தேடு',
-    voiceTip: 'பேசி தேடுங்கள்',
-    found: 'பதிவுகள் கிடைத்தன',
-    notFound: 'பதிவுகள் எதுவும் இல்லை',
-    ownerLabel: 'உரிமையாளர்',
-    surveyLabel: 'சர்வே எண்',
-    villageLabel: 'கிராமம்',
-    areaLabel: 'பரப்பளவு',
-    downloadRoR: 'RoR பதிவிறக்கம்',
-    downloadEC: 'EC பதிவிறக்கம்',
-    viewDetails: 'விவரங்கள் பார்க்க',
-    blockchainVerified: 'பிளாக்செயின் சரிபார்க்கப்பட்டது',
-    filterAll: 'அனைத்து புலங்கள்',
-    filterSurvey: 'சர்வே எண்',
-    filterOwner: 'உரிமையாளர் பெயர்',
-    filterVillage: 'கிராமம்',
-  },
-  te: {
-    title: 'మీ భూమి రికార్డు వెతకండి',
-    placeholder: 'సర్వే నంబర్, పేరు లేదా గ్రామం వెతకండి...',
-    searchBtn: 'రికార్డులు వెతకండి',
-    voiceTip: 'మాట్లాడి వెతకండి',
-    found: 'రికార్డులు దొరికాయి',
-    notFound: 'రికార్డులు లేవు',
-    ownerLabel: 'యజమాని',
-    surveyLabel: 'సర్వే నం',
-    villageLabel: 'గ్రామం',
-    areaLabel: 'విస్తీర్ణం',
-    downloadRoR: 'RoR డౌన్లోడ్',
-    downloadEC: 'EC డౌన్లోడ్',
-    viewDetails: 'వివరాలు చూడండి',
-    blockchainVerified: 'బ్లాక్‌చెయిన్ ధృవీకరించబడింది',
-    subtitle: 'సర్వే నంబర్, యజమాని పేరు లేదా గ్రామం ద్వారా వెతకండి',
-    filterAll: 'అన్ని ఫీల్డ్స్',
-    filterSurvey: 'సర్వే నంబర్',
-    filterOwner: 'యజమాని పేరు',
-    filterVillage: 'గ్రామం',
-  },
+// Native script labels for display only (not for selection)
+const LANG_SCRIPT_EXAMPLES = [
+  'हिन्दी','मराठी','தமிழ்','తెలుగు','ಕನ್ನಡ','বাংলা','ਪੰਜਾਬੀ','ગુજરાતી','മലയാളം','ओड़िआ',
+];
+
+const LAND_TYPE_COLORS: Record<string, string> = {
+  'Agricultural':            'bg-green-100 text-green-800 border-green-300',
+  'Agricultural (Irrigated)':'bg-emerald-100 text-emerald-800 border-emerald-300',
+  'Dry Crop Land':           'bg-lime-100 text-lime-800 border-lime-300',
+  'Industrial':              'bg-red-100 text-red-800 border-red-300',
+  'Residential':             'bg-blue-100 text-blue-800 border-blue-300',
+  'Commercial':              'bg-amber-100 text-amber-800 border-amber-300',
+  'Government':              'bg-purple-100 text-purple-800 border-purple-300',
+  'Forest':                  'bg-teal-100 text-teal-800 border-teal-300',
+  'Wasteland':               'bg-stone-100 text-stone-800 border-stone-300',
 };
 
-function t(lang: string, key: string): string {
-  return (UI_TEXT[lang] ?? UI_TEXT['en'])[key] ?? UI_TEXT['en'][key] ?? key;
+const LAND_EMOJIS: Record<string, string> = {
+  'Agricultural': '🌾', 'Agricultural (Irrigated)': '🌾', 'Dry Crop Land': '🌱',
+  'Industrial': '🏭', 'Residential': '🏘️', 'Commercial': '🏪',
+  'Government': '🏛️', 'Forest': '🌳', 'Wasteland': '🏜️',
+};
+
+interface LandRecord {
+  id: number;
+  owner_name?: string;
+  survey_number?: string;
+  village?: string;
+  district?: string;
+  area?: number;
+  land_classification?: string;
+  circle_rate_per_sqm?: number;
+  validation_status?: string;
+  document_id?: number;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock mutation history for demo
-// ─────────────────────────────────────────────────────────────────────────────
-const DEMO_MUTATIONS = [
-  { year: '2024', type: 'Sale Deed', from: 'Previous Owner', to: 'Current Owner', status: 'Completed' },
-  { year: '2018', type: 'Inheritance', from: 'Late Grandfather', to: 'Previous Owner', status: 'Completed' },
-  { year: '2005', type: 'Partition', from: 'Joint Family', to: 'Late Grandfather', status: 'Completed' },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Component
-// ─────────────────────────────────────────────────────────────────────────────
-export default function CitizenPortal() {
-  const [lang, setLang]           = useState('en');
-  const [query, setQuery]         = useState('');
-  const [field, setField]         = useState('all');
-  const [results, setResults]     = useState<Record<string, unknown>[] | null>(null);
-  const [loading, setLoading]     = useState(false);
-  const [error, setError]         = useState<string | null>(null);
-  const [selected, setSelected]   = useState<Record<string, unknown> | null>(null);
+export default function CitizenPortalPage() {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<LandRecord[] | null>(null);
+  const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
-  const [searched, setSearched]   = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [voiceInterim, setVoiceInterim] = useState('');
+  const [error, setError] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Voice search using Web Speech API
-  const startVoice = useCallback(() => {
-    if (!('SpeechRecognition' in window) && !('webkitSpeechRecognition' in window)) {
-      alert('Voice search not supported in this browser. Try Chrome.');
-      return;
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SR: any = (window as unknown as Record<string, unknown>)['SpeechRecognition']
-      || (window as unknown as Record<string, unknown>)['webkitSpeechRecognition'];
-    if (!SR) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const recognition: any = new SR();
-    recognitionRef.current = recognition;
-    // Set language for recognition
-    const langMap: Record<string, string> = {
-      hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN', te: 'te-IN',
-      kn: 'kn-IN', bn: 'bn-IN', gu: 'gu-IN', pa: 'pa-IN',
-      ml: 'ml-IN', or: 'or-IN', en: 'en-IN',
-    };
-    recognition.lang = langMap[lang] ?? 'en-IN';
-    recognition.interimResults = false;
-    recognition.onstart = () => setListening(true);
-    recognition.onend = () => setListening(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onresult = (e: any) => {
-      const transcript = e.results[0][0].transcript;
-      setQuery(transcript);
-    };
-    recognition.start();
-  }, [lang]);
+  // Rotating language placeholder text
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  const PLACEHOLDERS = [
+    'Search by Survey No, Owner Name or Village...',
+    'सर्वे नंबर, मालिक का नाम या गाँव से खोजें...',
+    'सर्वेक्षण क्रमांक, मालकाचे नाव किंवा गाव शोधा...',
+    'கர்வே எண், உரிமையாளர் பெயர் அல்லது கிராமம்...',
+    'సర్వే నంబర్, యజమాని పేరు లేదా గ్రామం...',
+    'ಸರ್ವೆ ನಂಬರ್, ಮಾಲೀಕರ ಹೆಸರು ಅಥವಾ ಗ್ರಾಮ...',
+    'সার্ভে নম্বর, মালিকের নাম বা গ্রাম...',
+    'સર્વે નંબર, માલિકનું નામ અથવા ગામ...',
+  ];
 
-  const stopVoice = useCallback(() => {
-    recognitionRef.current?.stop();
-    setListening(false);
-  }, []);
+  useEffect(() => {
+    const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDERS.length), 2500);
+    return () => clearInterval(t);
+  }, [PLACEHOLDERS.length]);
 
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) return;
     setLoading(true);
     setError(null);
-    setSearched(q);
-    setSelected(null);
     try {
-      // Use multilingual search endpoint
-      const res = await api.get('/search/multilingual', {
-        params: { q: q.trim(), lang, field }
-      });
+      const res = await api.get('/search', { params: { q, field: 'all' } });
       const data = res.data;
-      const records = data.results ?? data ?? [];
-      setResults(Array.isArray(records) ? records : []);
+      setResults(Array.isArray(data) ? data : data?.results ?? []);
     } catch {
-      // Fallback to standard search
-      try {
-        const res2 = await api.get('/search', { params: { q: q.trim(), field } });
-        const d2 = res2.data;
-        setResults(Array.isArray(d2) ? d2 : d2?.results ?? []);
-      } catch {
-        setResults([]);
-        setError('Could not connect to server. Showing empty results.');
-      }
+      setResults([]);
+      setError('Could not connect to server. Showing empty results.');
     } finally {
       setLoading(false);
     }
-  }, [lang, field]);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     doSearch(query);
   };
 
-  const currentLang = LANGUAGES.find(l => l.code === lang) ?? LANGUAGES[0];
+  // Universal voice search — tries all Indian languages simultaneously
+  const startVoice = () => {
+    if (typeof window === 'undefined') return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!SR) {
+      alert('Voice search needs Chrome or Edge browser.');
+      return;
+    }
+    const r = new SR();
+    // Use Hindi as primary (most common), browser will still auto-detect others
+    r.lang = 'hi-IN';
+    r.continuous = false;
+    r.interimResults = true;
+    r.maxAlternatives = 5;
+
+    r.onstart = () => { setListening(true); setVoiceInterim(''); };
+    r.onend   = () => { setListening(false); setVoiceInterim(''); };
+    r.onerror = () => { setListening(false); setVoiceInterim(''); };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    r.onresult = (e: any) => {
+      let interim = '';
+      let final = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) final += e.results[i][0].transcript;
+        else interim += e.results[i][0].transcript;
+      }
+      if (interim) setVoiceInterim(interim);
+      if (final) {
+        setQuery(final);
+        setVoiceInterim('');
+        doSearch(final);
+      }
+    };
+
+    recognitionRef.current = r;
+    r.start();
+  };
+
+  const stopVoice = () => {
+    recognitionRef.current?.stop();
+    setListening(false);
+  };
+
+  const getEstimatedValue = (rec: LandRecord) => {
+    if (!rec.circle_rate_per_sqm || !rec.area) return null;
+    const sqm = rec.area * 10000; // hectares to sq.m
+    const val = Math.round(sqm * rec.circle_rate_per_sqm);
+    return val >= 10000000
+      ? `₹${(val / 10000000).toFixed(2)} Cr`
+      : val >= 100000
+      ? `₹${(val / 100000).toFixed(1)} Lakh`
+      : `₹${val.toLocaleString('en-IN')}`;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950">
       {/* Navbar */}
-      <nav className="bg-slate-900/80 backdrop-blur border-b border-white/10 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-            <Landmark size={16} className="text-emerald-400" />
+      <header className="border-b border-white/10 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center">
+              <Landmark size={18} className="text-white" />
+            </div>
+            <div>
+              <p className="font-bold text-white text-sm leading-none">BhoomiAI</p>
+              <p className="text-xs text-emerald-400">Citizen Portal</p>
+            </div>
           </div>
-          <div>
-            <p className="text-white font-bold text-sm leading-none">BhoomiAI</p>
-            <p className="text-emerald-400 text-xs">Citizen Portal</p>
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-1.5 bg-white/10 rounded-full px-3 py-1.5">
+              <Globe2 size={12} className="text-emerald-400" />
+              <span className="text-xs text-white/80">22 Languages</span>
+            </div>
+            <Link href="/login"
+              className="text-xs text-white/60 hover:text-white border border-white/20 rounded-lg px-3 py-1.5 transition-colors">
+              Officer Login
+            </Link>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Language picker */}
-          <div className="relative">
-            <Globe size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <select
-              value={lang}
-              onChange={e => setLang(e.target.value)}
-              className="bg-slate-800 border border-white/10 text-white text-xs rounded-lg pl-7 pr-8 py-1.5 appearance-none focus:outline-none focus:border-emerald-500 cursor-pointer"
-            >
-              {LANGUAGES.map(l => (
-                <option key={l.code} value={l.code}>{l.flag} {l.native}</option>
-              ))}
-            </select>
-          </div>
-          <Link href="/login" className="text-xs text-slate-400 hover:text-white border border-white/10 px-3 py-1.5 rounded-lg transition-all">
-            Officer Login
-          </Link>
-        </div>
-      </nav>
+      </header>
 
       {/* Hero */}
-      <div className="px-4 pt-12 pb-8 text-center max-w-2xl mx-auto">
-        <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-4 py-1.5 mb-5">
-          <Shield size={12} className="text-emerald-400" />
-          <span className="text-emerald-400 text-xs font-bold">Government of India — Land Record Portal</span>
+      <div className="max-w-4xl mx-auto px-4 pt-16 pb-10 text-center">
+        <div className="inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs rounded-full px-4 py-1.5 mb-6">
+          <Shield size={12} /> Government of India — Land Record Portal
         </div>
-        <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 leading-tight">
-          {t(lang, 'title')}
-        </h1>
-        <p className="text-slate-400 text-sm mb-8">{t(lang, 'subtitle')}</p>
 
-        {/* Language pills */}
-        <div className="flex flex-wrap justify-center gap-2 mb-6">
-          {LANGUAGES.slice(0, 8).map(l => (
-            <button
-              key={l.code}
-              onClick={() => setLang(l.code)}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                lang === l.code
-                  ? 'bg-emerald-500 border-emerald-400 text-white font-bold'
-                  : 'bg-white/5 border-white/10 text-slate-400 hover:border-emerald-500/50 hover:text-white'
-              }`}
-            >
-              {l.flag} {l.native}
-            </button>
+        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
+          Find Your Land Record
+        </h1>
+        <p className="text-slate-400 text-lg mb-2">
+          Type or speak in <span className="text-emerald-400 font-semibold">any Indian language</span>
+        </p>
+
+        {/* Scrolling language scripts */}
+        <div className="flex flex-wrap justify-center gap-2 mb-10 opacity-50">
+          {LANG_SCRIPT_EXAMPLES.map(s => (
+            <span key={s} className="text-xs text-white bg-white/5 rounded-full px-2 py-0.5">{s}</span>
           ))}
         </div>
 
-        {/* Search bar */}
-        <form onSubmit={handleSubmit} className="relative">
-          <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder={t(lang, 'placeholder')}
-                className="w-full pl-11 pr-12 py-4 bg-white/10 backdrop-blur border border-white/20 focus:border-emerald-400 focus:bg-white/15 rounded-2xl text-white placeholder-slate-400 text-sm focus:outline-none transition-all"
-              />
-              {/* Voice search */}
-              <button
-                type="button"
-                onClick={listening ? stopVoice : startVoice}
-                title={t(lang, 'voiceTip')}
-                className={`absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all ${
-                  listening ? 'bg-red-500 text-white animate-pulse' : 'text-slate-400 hover:text-emerald-400'
-                }`}
-              >
-                {listening ? <MicOff size={16} /> : <Mic size={16} />}
-              </button>
-            </div>
-
-            <select
-              value={field}
-              onChange={e => setField(e.target.value)}
-              className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl px-3 text-slate-300 text-xs focus:outline-none focus:border-emerald-400 hidden sm:block"
+        {/* ══════════════════════════════════════════
+            SINGLE UNIVERSAL SEARCH BAR
+            Type OR speak in ANY Indian language
+            ══════════════════════════════════════════ */}
+        <form onSubmit={handleSubmit} className="relative max-w-2xl mx-auto">
+          <div className={`flex items-center bg-white rounded-2xl shadow-2xl overflow-hidden border-4 transition-all ${
+            listening ? 'border-red-400 shadow-red-500/30' : 'border-white/20'
+          }`}>
+            {/* Mic button — LEFT side */}
+            <button
+              type="button"
+              onClick={listening ? stopVoice : startVoice}
+              className={`flex-shrink-0 flex items-center justify-center w-14 h-14 transition-all ${
+                listening
+                  ? 'bg-red-50 text-red-500'
+                  : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+              }`}
+              title={listening ? 'Stop — click to cancel' : 'Speak in any Indian language'}
             >
-              <option value="all" className="text-slate-900">{t(lang, 'filterAll')}</option>
-              <option value="survey_number" className="text-slate-900">{t(lang, 'filterSurvey')}</option>
-              <option value="owner_name" className="text-slate-900">{t(lang, 'filterOwner')}</option>
-              <option value="village" className="text-slate-900">{t(lang, 'filterVillage')}</option>
-            </select>
+              {listening ? (
+                <span className="relative flex">
+                  <span className="animate-ping absolute inline-flex h-5 w-5 rounded-full bg-red-400 opacity-75"></span>
+                  <MicOff size={20} className="relative" />
+                </span>
+              ) : (
+                <Mic size={20} />
+              )}
+            </button>
 
+            {/* Input field */}
+            <input
+              ref={inputRef}
+              type="text"
+              value={listening && voiceInterim ? voiceInterim : query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder={PLACEHOLDERS[placeholderIdx]}
+              className="flex-1 py-4 px-2 text-slate-800 text-base focus:outline-none bg-transparent placeholder-slate-400"
+            />
+
+            {/* Clear button */}
+            {(query || voiceInterim) && !listening && (
+              <button type="button" onClick={() => { setQuery(''); setResults(null); }}
+                className="p-2 text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
+            )}
+
+            {/* Search button — RIGHT side */}
             <button
               type="submit"
               disabled={!query.trim() || loading}
-              className="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white font-bold px-6 py-4 rounded-2xl transition-all flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-500/20"
+              className="flex-shrink-0 flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold px-6 h-14 transition-all text-sm"
             >
               {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-              <span className="hidden sm:inline">{t(lang, 'searchBtn')}</span>
+              <span className="hidden sm:inline">Search Records</span>
             </button>
           </div>
+
+          {/* Voice hint */}
+          {listening && (
+            <div className="absolute -bottom-8 left-0 right-0 text-center">
+              <span className="text-xs text-red-400 animate-pulse">
+                🎤 Listening... speak in Hindi, Tamil, Telugu, Marathi or any Indian language
+              </span>
+            </div>
+          )}
         </form>
 
-        {listening && (
-          <div className="flex items-center justify-center gap-2 mt-3 text-red-400 text-xs">
-            <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
-            Listening in {currentLang.native}…
-          </div>
-        )}
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-16 max-w-2xl mx-auto">
+          {[
+            { icon: <FileText size={18} />, value: '2.4 Crore+', label: 'Records Digitized' },
+            { icon: <Globe2 size={18} />, value: '22 Indian', label: 'Languages' },
+            { icon: <Shield size={18} />, value: '100%', label: 'Blockchain Secured' },
+            { icon: <Clock size={18} />, value: '< 2 sec', label: 'Avg Processing' },
+          ].map(s => (
+            <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+              <div className="text-emerald-400 flex justify-center mb-2">{s.icon}</div>
+              <p className="text-white font-bold text-lg">{s.value}</p>
+              <p className="text-slate-400 text-xs">{s.label}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Results */}
-      <div className="max-w-3xl mx-auto px-4 pb-12">
-        {error && (
-          <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 text-amber-300 text-sm mb-4">
-            <AlertCircle size={14} /> {error}
-          </div>
-        )}
-
-        {loading && (
-          <div className="flex flex-col items-center py-16 text-slate-400">
-            <Loader2 size={32} className="animate-spin text-emerald-400 mb-3" />
-            <p className="text-sm">Searching in {currentLang.native}…</p>
-          </div>
-        )}
-
-        {!loading && results !== null && (
-          <>
-            <div className="flex items-center justify-between mb-4">
-              {results.length > 0
-                ? <p className="text-sm text-slate-300"><span className="text-emerald-400 font-bold">{results.length}</span> {t(lang, 'found')}</p>
-                : <p className="text-sm text-slate-400">{t(lang, 'notFound')} &ldquo;{searched}&rdquo;</p>
-              }
-              {results.length > 0 && <p className="text-xs text-slate-500">Searched: &ldquo;{searched}&rdquo;</p>}
+      {(results !== null || error) && (
+        <div className="max-w-4xl mx-auto px-4 pb-16">
+          <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+            {/* Results header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                {results && results.length > 0
+                  ? <CheckCircle size={16} className="text-emerald-500" />
+                  : <AlertCircle size={16} className="text-amber-500" />}
+                <span className="font-semibold text-slate-700 text-sm">
+                  {results && results.length > 0
+                    ? `${results.length} record${results.length !== 1 ? 's' : ''} found`
+                    : error || 'No records found'}
+                </span>
+              </div>
+              <button onClick={() => { setResults(null); setQuery(''); }}
+                className="text-slate-400 hover:text-slate-600">
+                <X size={18} />
+              </button>
             </div>
 
-            <div className="space-y-3">
-              {results.map((rec, i) => (
-                <div
-                  key={i}
-                  className="bg-white/8 backdrop-blur border border-white/10 hover:border-emerald-500/40 hover:bg-white/12 rounded-2xl p-4 transition-all cursor-pointer"
-                  onClick={() => setSelected(rec === selected ? null : rec)}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                          String(rec.validation_status ?? '').includes('Pass') || String(rec.validation_status ?? '').includes('Verif')
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                        }`}>
-                          {String(rec.validation_status ?? 'Pending')}
-                        </span>
-                        <span className="flex items-center gap-1 text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                          <Shield size={10} /> {t(lang, 'blockchainVerified')}
-                        </span>
-                      </div>
-                      <h3 className="text-white font-bold text-base">
-                        {String(rec.owner_name ?? 'Unknown Owner')}
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-400">
-                        {!!rec.survey_number && (
-                          <span className="flex items-center gap-1"><Hash size={11} />{t(lang, 'surveyLabel')}: {String(rec.survey_number)}</span>
-                        )}
-                        {!!rec.village && (
-                          <span className="flex items-center gap-1"><MapPin size={11} />{String(rec.village)}{rec.district ? `, ${String(rec.district)}` : ''}</span>
-                        )}
-                        {!!rec.area && (
-                          <span className="flex items-center gap-1"><FileText size={11} />{String(rec.area)} Ha</span>
-                        )}
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className={`text-slate-400 transition-transform flex-shrink-0 mt-1 ${selected === rec ? 'rotate-90 text-emerald-400' : ''}`} />
-                  </div>
+            {/* Result cards */}
+            <div className="divide-y divide-slate-100">
+              {results?.map(rec => {
+                const lc = rec.land_classification || '';
+                const colorClass = LAND_TYPE_COLORS[lc] || 'bg-slate-100 text-slate-700 border-slate-300';
+                const emoji = LAND_EMOJIS[lc] || '📍';
+                const estValue = getEstimatedValue(rec);
 
-                  {/* Expanded detail panel */}
-                  {selected === rec && (
-                    <div className="mt-4 pt-4 border-t border-white/10">
-                      <div className="grid grid-cols-2 gap-2 mb-4">
-                        {[
-                          ['Survey No', String(rec.survey_number ?? '—')],
-                          ['Khasra No', String(rec.khasra_number ?? '—')],
-                          ['Area', rec.area ? `${String(rec.area)} Hectares` : '—'],
-                          ['Village', String(rec.village ?? '—')],
-                          ['Tehsil', String(rec.tehsil ?? '—')],
-                          ['District', String(rec.district ?? '—')],
-                          ['Land Type', String(rec.land_classification ?? '—')],
-                          ['Ownership', String(rec.ownership_type ?? '—')],
-                        ].map(([label, val]) => (
-                          <div key={label} className="bg-white/5 rounded-xl p-2.5">
-                            <p className="text-slate-400 text-xs">{label}</p>
-                            <p className="text-white text-sm font-semibold mt-0.5 truncate">{val}</p>
-                          </div>
-                        ))}
-                      </div>
+                return (
+                  <div key={rec.id} className="p-5 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        {/* Land type badge */}
+                        {lc && (
+                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border mb-3 ${colorClass}`}>
+                            {emoji} {lc}
+                          </span>
+                        )}
 
-                      {/* Mutation timeline */}
-                      <div className="mb-4">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Chain of Title</p>
-                        <div className="space-y-2">
-                          {DEMO_MUTATIONS.map((m, idx) => (
-                            <div key={idx} className="flex items-center gap-3 text-xs">
-                              <div className="w-16 text-slate-500 flex-shrink-0">{m.year}</div>
-                              <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
-                              <div className="text-slate-300">{m.type} — {m.to}</div>
-                              <CheckCircle size={11} className="text-emerald-400 ml-auto flex-shrink-0" />
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {rec.owner_name && (
+                            <div className="flex items-start gap-2">
+                              <User size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-xs text-slate-400">Owner</p>
+                                <p className="text-sm font-semibold text-slate-800">{rec.owner_name}</p>
+                              </div>
                             </div>
-                          ))}
+                          )}
+                          {rec.survey_number && (
+                            <div className="flex items-start gap-2">
+                              <Hash size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-xs text-slate-400">Survey No</p>
+                                <p className="text-sm font-semibold text-slate-800">{rec.survey_number}</p>
+                              </div>
+                            </div>
+                          )}
+                          {(rec.village || rec.district) && (
+                            <div className="flex items-start gap-2">
+                              <MapPin size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-xs text-slate-400">Location</p>
+                                <p className="text-sm font-semibold text-slate-800">
+                                  {[rec.village, rec.district].filter(Boolean).join(', ')}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          {rec.area && (
+                            <div className="flex items-start gap-2">
+                              <FileText size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-xs text-slate-400">Area</p>
+                                <p className="text-sm font-semibold text-slate-800">
+                                  {rec.area} Ha ({(rec.area * 10000).toFixed(0)} sq.m)
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          {rec.circle_rate_per_sqm && (
+                            <div className="flex items-start gap-2">
+                              <TrendingUp size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-xs text-slate-400">Govt. Circle Rate</p>
+                                <p className="text-sm font-semibold text-emerald-700">
+                                  ₹{rec.circle_rate_per_sqm.toLocaleString('en-IN')}/sq.m
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          {estValue && (
+                            <div className="flex items-start gap-2">
+                              <Shield size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-xs text-slate-400">Min. Estimated Value</p>
+                                <p className="text-sm font-bold text-blue-700">{estValue}</p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-col gap-2 flex-shrink-0">
                         <a
-                          href="#"
-                          onClick={e => e.preventDefault()}
-                          className="flex items-center gap-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-xl transition-all"
+                          href={`${API}/documents/${rec.document_id}/image`}
+                          target="_blank" rel="noreferrer"
+                          className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-xl transition-colors"
                         >
-                          <Download size={13} /> {t(lang, 'downloadRoR')}
+                          <Download size={12} /> Download RoR
                         </a>
-                        <a
-                          href="#"
-                          onClick={e => e.preventDefault()}
-                          className="flex items-center gap-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-xl transition-all"
+                        <Link
+                          href={`/verify/${rec.id}`}
+                          className="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-2 rounded-xl transition-colors"
                         >
-                          <Download size={13} /> {t(lang, 'downloadEC')}
-                        </a>
-                        <div className="flex items-center gap-1.5 text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-xl">
-                          <Shield size={12} />
-                          Hash: {`0x${Math.random().toString(16).slice(2, 14)}...`}
-                        </div>
+                          View Details <ChevronRight size={12} />
+                        </Link>
                       </div>
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+                  </div>
+                );
+              })}
 
-        {/* Empty state with stats */}
-        {!loading && results === null && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-            {[
-              { icon: FileText, label: 'Records Digitized', value: '2.4 Crore+' },
-              { icon: Globe,    label: 'Languages',         value: '22 Indian' },
-              { icon: Shield,   label: 'Blockchain Secured', value: '100%' },
-              { icon: Clock,    label: 'Avg Processing',   value: '< 2 sec' },
-            ].map(s => (
-              <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
-                <s.icon size={18} className="text-emerald-400 mx-auto mb-2" />
-                <p className="text-white font-bold text-lg">{s.value}</p>
-                <p className="text-slate-400 text-xs mt-0.5">{s.label}</p>
+              {results?.length === 0 && !error && (
+                <div className="text-center py-12">
+                  <AlertCircle size={32} className="mx-auto text-slate-300 mb-3" />
+                  <p className="text-slate-500 font-medium">No records found</p>
+                  <p className="text-slate-400 text-sm mt-1">Try searching by survey number, owner name, or village name</p>
+                </div>
+              )}
+            </div>
+
+            {/* Citizen actions */}
+            <div className="bg-emerald-50 border-t border-emerald-100 px-6 py-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p className="text-sm text-emerald-700">
+                  <strong>Want to digitize your land record?</strong>
+                </p>
+                <div className="flex gap-3">
+                  <Link href="/citizen/login"
+                    className="text-xs bg-white border border-emerald-300 text-emerald-700 font-medium px-4 py-2 rounded-xl hover:bg-emerald-50 transition-colors">
+                    Sign In
+                  </Link>
+                  <Link href="/citizen/register"
+                    className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-xl transition-colors">
+                    Create Account →
+                  </Link>
+                </div>
               </div>
-            ))}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
