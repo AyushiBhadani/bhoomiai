@@ -25,7 +25,7 @@ const ALL_LANG_CODES = [
 
 // Native script labels for display only (not for selection)
 const LANG_SCRIPT_EXAMPLES = [
-  'हिन्दी','मराठी','தமிழ்','తెలుగు','ಕನ್ನಡ','বাংলা','ਪੰਜਾਬੀ','ગુજરાતી','മലയാളം','ओड़िआ',
+  'English','हिन्दी','मराठी','தமிழ்','తెలుగు','ಕನ್ನಡ','বাংলা','ਪੰਜਾਬੀ','ગુજરાતી','മലയാളം','ओड़िआ','اردو',
 ];
 
 const LAND_TYPE_COLORS: Record<string, string> = {

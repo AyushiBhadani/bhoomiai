@@ -533,6 +533,40 @@ export default function DashboardPage() {
               )}
             </div>
 
+            {/* AI Processing Settings */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-purple-50 rounded-full blur-2xl -mr-10 -mt-10" />
+              <div className="flex items-center gap-2 mb-4 relative z-10">
+                <Zap size={15} className="text-purple-500" />
+                <h2 className="text-sm font-semibold text-slate-800">
+                  AI Processing Engine
+                </h2>
+              </div>
+              <div className="space-y-2 relative z-10">
+                <label className="flex items-start gap-2 p-2.5 rounded-xl border-2 border-purple-500 bg-purple-50 cursor-pointer">
+                  <input type="radio" name="ai_model" className="mt-0.5 text-purple-600" defaultChecked />
+                  <div>
+                    <p className="text-xs font-bold text-purple-900 leading-tight">Gemini Vision (Cloud)</p>
+                    <p className="text-[10px] text-purple-600 mt-0.5">Zero-shot extraction. Active (Free Tier).</p>
+                  </div>
+                </label>
+                <label className="flex items-start gap-2 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors opacity-70">
+                  <input type="radio" name="ai_model" className="mt-0.5" />
+                  <div>
+                    <p className="text-xs font-bold text-slate-700 leading-tight">AI4Bharat Surya OCR</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Indic handwriting (Local).</p>
+                  </div>
+                </label>
+                <label className="flex items-start gap-2 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors opacity-70">
+                  <input type="radio" name="ai_model" className="mt-0.5" />
+                  <div>
+                    <p className="text-xs font-bold text-slate-700 leading-tight">LayoutLMv3 (Fine-tuned)</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Historical structure mapping.</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
             {/* Recent Activity */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
               <div className="flex items-center gap-2 mb-4">
