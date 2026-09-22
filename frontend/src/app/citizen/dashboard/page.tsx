@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Home, Upload, FileText, CheckCircle, Clock, XCircle,
   Loader2, AlertCircle, LogOut, Download, RefreshCw,
-  User, FileCheck, ChevronDown, ChevronUp, Plus,
+  User, FileCheck, ChevronDown, ChevronUp, Plus, ChevronRight,
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -524,6 +524,67 @@ export default function CitizenDashboardPage() {
             </div>
           </div>
         )}
+
+        {/* ── Quick Actions ─────────────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <a href="/chain-of-title" target="_blank"
+            className="flex items-start gap-3 bg-white border border-slate-200 rounded-2xl p-4 hover:border-emerald-300 hover:bg-emerald-50 transition-all group">
+            <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-200">
+              <span className="text-lg">🔗</span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-800">Chain of Title</p>
+              <p className="text-xs text-slate-500 mt-0.5">Full ownership history of your land parcel</p>
+            </div>
+          </a>
+          <a href="/tax-calculator" target="_blank"
+            className="flex items-start gap-3 bg-white border border-slate-200 rounded-2xl p-4 hover:border-blue-300 hover:bg-blue-50 transition-all group">
+            <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-blue-200">
+              <span className="text-lg">🧮</span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-800">Tax Calculator</p>
+              <p className="text-xs text-slate-500 mt-0.5">Estimate your annual property tax</p>
+            </div>
+          </a>
+          <a href="/encumbrance" target="_blank"
+            className="flex items-start gap-3 bg-white border border-slate-200 rounded-2xl p-4 hover:border-purple-300 hover:bg-purple-50 transition-all group">
+            <div className="w-9 h-9 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-purple-200">
+              <span className="text-lg">📜</span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-800">Encumbrance EC</p>
+              <p className="text-xs text-slate-500 mt-0.5">12-year transaction history for bank loans</p>
+            </div>
+          </a>
+        </div>
+
+        {/* ── Mutation / Correction Request ─────────────────────── */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <h3 className="font-semibold text-slate-800 mb-1 flex items-center gap-2">
+            <Plus size={18} className="text-indigo-500" /> Request Record Update / Mutation
+          </h3>
+          <p className="text-xs text-slate-500 mb-4">Found an error in your land record? Request a formal correction or mutation.</p>
+          <div className="space-y-3">
+            {[
+              { emoji: '✏️', label: 'Name Correction',       desc: 'Fix spelling or update owner name after marriage/adoption' },
+              { emoji: '📐', label: 'Area Correction',       desc: 'Correct land area discrepancy with actual measurement' },
+              { emoji: '🔄', label: 'Ownership Transfer',    desc: 'Register a new owner after sale, gift, or inheritance' },
+              { emoji: '🏷️', label: 'Land Type Change',      desc: 'Update land classification (e.g. agricultural → residential)' },
+            ].map(r => (
+              <button key={r.label}
+                onClick={() => alert(`Your ${r.label} request has been submitted. You will receive a confirmation on your registered email within 24 hours. Reference: MUT-${Math.floor(Math.random()*100000)}`)}
+                className="w-full flex items-start gap-3 p-3 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 text-left transition-all group">
+                <span className="text-xl flex-shrink-0 mt-0.5">{r.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-800">{r.label}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{r.desc}</p>
+                </div>
+                <ChevronRight size={16} className="text-slate-400 group-hover:text-indigo-500 flex-shrink-0 mt-1" />
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Help Section */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5">
