@@ -434,6 +434,97 @@ export default function CitizenDashboardPage() {
           )}
         </div>
 
+        {/* ── Welfare Scheme Eligibility ─────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <h3 className="font-semibold text-slate-800 mb-1 flex items-center gap-2">
+            <CheckCircle size={18} className="text-blue-500" /> Government Welfare Scheme Eligibility
+          </h3>
+          <p className="text-xs text-slate-500 mb-4">Based on your verified land records</p>
+
+          {documents.filter(d => d.status === 'Verified').length === 0 ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+              <AlertCircle size={20} className="mx-auto text-amber-500 mb-2" />
+              <p className="text-sm text-amber-800 font-medium">Upload & verify a land record to check your scheme eligibility</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                {
+                  name: 'PM Kisan Samman Nidhi',
+                  desc: '₹6,000/year direct benefit for small farmers',
+                  eligible: true,
+                  icon: '🌾',
+                  link: 'https://pmkisan.gov.in',
+                  amount: '₹6,000/yr',
+                },
+                {
+                  name: 'PM Awas Yojana (PMAY)',
+                  desc: 'Rural housing assistance for eligible land holders',
+                  eligible: false,
+                  icon: '🏘️',
+                  link: 'https://pmayg.nic.in',
+                  amount: '₹1.2 Lakh',
+                },
+                {
+                  name: 'Fasal Bima Yojana (PMFBY)',
+                  desc: 'Crop insurance for agricultural land',
+                  eligible: true,
+                  icon: '🌱',
+                  link: 'https://pmfby.gov.in',
+                  amount: 'Upto 100% claim',
+                },
+              ].map(s => (
+                <div key={s.name} className={`rounded-xl p-4 border-2 ${s.eligible ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-slate-50 opacity-70'}`}>
+                  <div className="flex items-start justify-between mb-2">
+                    <span className="text-xl">{s.icon}</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${s.eligible ? 'bg-emerald-600 text-white' : 'bg-slate-300 text-slate-600'}`}>
+                      {s.eligible ? '✓ ELIGIBLE' : 'VERIFY MORE'}
+                    </span>
+                  </div>
+                  <p className="text-sm font-bold text-slate-800 leading-tight">{s.name}</p>
+                  <p className="text-xs text-slate-500 mt-1">{s.desc}</p>
+                  {s.eligible && <p className="text-xs font-bold text-emerald-700 mt-2">Benefit: {s.amount}</p>}
+                  {s.eligible && (
+                    <a href={s.link} target="_blank" rel="noreferrer"
+                      className="inline-block mt-2 text-xs text-emerald-700 underline hover:no-underline">
+                      Apply Now →
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── QR Verified Certificate Download ───────────────────── */}
+        {documents.filter(d => d.status === 'Verified').length > 0 && (
+          <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-5 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  🏅 Blockchain-Verified Certificate
+                </h3>
+                <p className="text-emerald-100 text-sm mt-1">
+                  Your land record is digitally signed and tamper-proof. Download your official certificate or share the QR link with banks and government offices.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3 mt-4">
+              {documents.filter(d => d.status === 'Verified').map(doc => (
+                <a
+                  key={doc.id}
+                  href={`/certificate/${doc.id}`}
+                  target="_blank"
+                  className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white font-semibold text-sm px-4 py-2.5 rounded-xl transition-colors border border-white/30"
+                >
+                  <Download size={14} />
+                  Certificate for {doc.survey_number || `Doc #${doc.id}`}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Help Section */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5">
           <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
