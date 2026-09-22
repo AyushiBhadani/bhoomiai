@@ -13,6 +13,7 @@ import {
   MapPin, AlertCircle, Clock, TrendingUp,
 } from 'lucide-react';
 import api from '@/lib/api';
+import CitizenChatbot from '@/components/CitizenChatbot';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
@@ -454,6 +455,8 @@ export default function CitizenPortalPage() {
           </div>
         </div>
       )}
+      {/* Floating AI Chatbot — speaks 22 Indian languages */}
+      <CitizenChatbot />
     </div>
   );
 }

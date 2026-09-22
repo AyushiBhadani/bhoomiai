@@ -526,35 +526,37 @@ export default function CitizenDashboardPage() {
         )}
 
         {/* ── Quick Actions ─────────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <a href="/chain-of-title" target="_blank"
-            className="flex items-start gap-3 bg-white border border-slate-200 rounded-2xl p-4 hover:border-emerald-300 hover:bg-emerald-50 transition-all group">
-            <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-200">
-              <span className="text-lg">🔗</span>
-            </div>
+            className="flex flex-col items-center gap-2 bg-white border border-slate-200 rounded-2xl p-4 hover:border-emerald-300 hover:bg-emerald-50 transition-all group text-center">
+            <span className="text-2xl">🔗</span>
             <div>
-              <p className="text-sm font-bold text-slate-800">Chain of Title</p>
-              <p className="text-xs text-slate-500 mt-0.5">Full ownership history of your land parcel</p>
+              <p className="text-xs font-bold text-slate-800">Chain of Title</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Ownership history</p>
             </div>
           </a>
           <a href="/tax-calculator" target="_blank"
-            className="flex items-start gap-3 bg-white border border-slate-200 rounded-2xl p-4 hover:border-blue-300 hover:bg-blue-50 transition-all group">
-            <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-blue-200">
-              <span className="text-lg">🧮</span>
-            </div>
+            className="flex flex-col items-center gap-2 bg-white border border-slate-200 rounded-2xl p-4 hover:border-blue-300 hover:bg-blue-50 transition-all group text-center">
+            <span className="text-2xl">🧮</span>
             <div>
-              <p className="text-sm font-bold text-slate-800">Tax Calculator</p>
-              <p className="text-xs text-slate-500 mt-0.5">Estimate your annual property tax</p>
+              <p className="text-xs font-bold text-slate-800">Tax Calculator</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Annual property tax</p>
             </div>
           </a>
           <a href="/encumbrance" target="_blank"
-            className="flex items-start gap-3 bg-white border border-slate-200 rounded-2xl p-4 hover:border-purple-300 hover:bg-purple-50 transition-all group">
-            <div className="w-9 h-9 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-purple-200">
-              <span className="text-lg">📜</span>
-            </div>
+            className="flex flex-col items-center gap-2 bg-white border border-slate-200 rounded-2xl p-4 hover:border-purple-300 hover:bg-purple-50 transition-all group text-center">
+            <span className="text-2xl">📜</span>
             <div>
-              <p className="text-sm font-bold text-slate-800">Encumbrance EC</p>
-              <p className="text-xs text-slate-500 mt-0.5">12-year transaction history for bank loans</p>
+              <p className="text-xs font-bold text-slate-800">Encumbrance EC</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Bank loan history</p>
+            </div>
+          </a>
+          <a href="/loan-eligibility" target="_blank"
+            className="flex flex-col items-center gap-2 bg-white border border-slate-200 rounded-2xl p-4 hover:border-amber-300 hover:bg-amber-50 transition-all group text-center">
+            <span className="text-2xl">🏦</span>
+            <div>
+              <p className="text-xs font-bold text-slate-800">Loan Eligibility</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Bank loan estimate</p>
             </div>
           </a>
         </div>
