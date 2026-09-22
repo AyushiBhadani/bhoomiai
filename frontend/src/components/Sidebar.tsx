@@ -15,7 +15,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Upload, Database, CheckSquare,
   Map, Search, ClipboardList, LogOut, Layers,
-  ShieldCheck, Shield, Settings, PlayCircle, Bot, Users, Sparkles, AlertTriangle, Calculator, Link2, Building2,
+  ShieldCheck, Shield, Settings, PlayCircle, Bot, Users, Sparkles, AlertTriangle, Calculator, Link2, Building2, Globe2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
@@ -115,6 +115,14 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Loan Eligibility',
     icon: <Building2 size={17} />,
     roles: ['admin', 'officer', 'verifier'],
+  },
+  {
+    href: '/integrations',
+    label: 'Gov Integrations',
+    icon: <Globe2 size={17} />,
+    roles: ['admin', 'officer', 'verifier'],
+    badge: 'Live',
+    badgeColor: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30',
   },
   {
     href: '/audit',

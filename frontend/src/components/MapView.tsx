@@ -9,7 +9,7 @@
  *  - Boundary polygon for each parcel
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Polygon, Marker, Popup, useMap } from 'react-leaflet';
 import type { LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -114,13 +114,40 @@ export default function MapView({ parcels, highlightSurvey, onSelect }: MapViewP
     new Set(parcels.map(p => (p as Parcel & { land_classification?: string }).land_classification || 'Unknown'))
   ).slice(0, 6);
 
+  const [useSatellite, setUseSatellite] = React.useState(false);
+
   return (
     <div className="relative w-full h-full">
+      {/* Layer switcher */}
+      <div className="absolute top-3 right-3 z-10 flex gap-1 bg-white rounded-xl shadow border border-slate-200 p-1">
+        <button
+          onClick={() => setUseSatellite(false)}
+          className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${!useSatellite ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+        >
+          🗺️ Map
+        </button>
+        <button
+          onClick={() => setUseSatellite(true)}
+          className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${useSatellite ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+        >
+          🛰️ Satellite
+        </button>
+      </div>
+
       <MapContainer center={center} zoom={13} style={{ width: '100%', height: '100%' }} className="z-0">
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        {useSatellite ? (
+          // ESRI World Imagery (free, no key needed — used by ArcGIS/government portals)
+          <TileLayer
+            attribution='Tiles &copy; Esri &mdash; Source: Esri, Maxar, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community | <a href="https://bhuvan.nrsc.gov.in" target="_blank">ISRO Bhuvan</a>'
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            maxZoom={19}
+          />
+        ) : (
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | <a href="https://dilrmp.gov.in" target="_blank">DILRMP</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+        )}
 
         {coords.length > 0 && <FitBounds coords={coords} />}
 
