@@ -15,7 +15,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Upload, Database, CheckSquare,
   Map, Search, ClipboardList, LogOut, Layers,
-  ShieldCheck, Shield, Settings, PlayCircle, Bot, Users, Sparkles,
+  ShieldCheck, Shield, Settings, PlayCircle, Bot, Users, Sparkles, AlertTriangle, Calculator,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
@@ -88,6 +88,20 @@ const NAV_ITEMS: NavItem[] = [
     href: '/encumbrance',
     label: 'Encumbrance EC',
     icon: <Shield size={17} />,
+    roles: ['admin', 'officer', 'verifier'],
+  },
+  {
+    href: '/fraud',
+    label: 'Fraud Alerts',
+    icon: <AlertTriangle size={17} />,
+    roles: ['admin'],
+    badge: 'AI',
+    badgeColor: 'text-red-400 bg-red-500/20 border-red-500/30',
+  },
+  {
+    href: '/tax-calculator',
+    label: 'Tax Calculator',
+    icon: <Calculator size={17} />,
     roles: ['admin', 'officer', 'verifier'],
   },
   {
