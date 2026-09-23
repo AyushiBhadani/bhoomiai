@@ -37,7 +37,7 @@ const SYSTEMS: SystemStatus[] = [
     status: 'live',
     lastSync: '2 min ago',
     recordCount: '24.1 Crore',
-    apiEndpoint: 'https://dilrmp.gov.in/api/v1',
+    apiEndpoint: 'https://dilrmp.gov.in',
     icon: '🏛️',
     color: 'emerald',
   },
@@ -50,7 +50,7 @@ const SYSTEMS: SystemStatus[] = [
     status: 'live',
     lastSync: '5 min ago',
     recordCount: '4.2 Crore',
-    apiEndpoint: 'https://upbhulekh.gov.in/public/api',
+    apiEndpoint: 'https://upbhulekh.gov.in',
     icon: '🗺️',
     color: 'blue',
   },
@@ -63,7 +63,7 @@ const SYSTEMS: SystemStatus[] = [
     status: 'live',
     lastSync: '8 min ago',
     recordCount: '2.8 Crore',
-    apiEndpoint: 'https://mahabhulekh.maharashtra.gov.in/api',
+    apiEndpoint: 'https://mahabhulekh.maharashtra.gov.in',
     icon: '🗺️',
     color: 'blue',
   },
@@ -76,7 +76,7 @@ const SYSTEMS: SystemStatus[] = [
     status: 'syncing',
     lastSync: '23 min ago',
     recordCount: '1.6 Crore',
-    apiEndpoint: 'https://meebhoomi.ap.gov.in/api',
+    apiEndpoint: 'https://meebhoomi.ap.gov.in',
     icon: '🔄',
     color: 'amber',
   },
@@ -89,7 +89,7 @@ const SYSTEMS: SystemStatus[] = [
     status: 'live',
     lastSync: '11 min ago',
     recordCount: '1.9 Crore',
-    apiEndpoint: 'https://landrecords.karnataka.gov.in/api',
+    apiEndpoint: 'https://landrecords.karnataka.gov.in',
     icon: '🗺️',
     color: 'blue',
   },
@@ -101,8 +101,20 @@ const SYSTEMS: SystemStatus[] = [
     description: 'Indian Space Research Organisation\'s national GIS portal. Provides satellite imagery, cadastral boundaries, and LULC data.',
     status: 'live',
     lastSync: 'Real-time',
-    apiEndpoint: 'https://bhuvan-vec1.nrsc.gov.in/bhuvan/wms',
+    apiEndpoint: 'https://bhuvan.nrsc.gov.in',
     icon: '🛰️',
+    color: 'purple',
+  },
+  {
+    id: 'datagov',
+    name: 'data.gov.in (Open Govt. Data)',
+    shortName: 'data.gov.in',
+    category: 'GIS Platform',
+    description: 'India\'s official open government data portal. Free JSON API with land record datasets from DILRMP and state governments.',
+    status: 'live',
+    lastSync: 'Real-time',
+    apiEndpoint: 'https://data.gov.in',
+    icon: '📊',
     color: 'purple',
   },
   {
@@ -113,7 +125,7 @@ const SYSTEMS: SystemStatus[] = [
     description: 'Official cadastral maps, topographic sheets, and benchmark data from India\'s national mapping agency.',
     status: 'live',
     lastSync: 'Weekly sync',
-    apiEndpoint: 'https://onlinemaps.surveyofindia.gov.in/wms',
+    apiEndpoint: 'https://surveyofindia.gov.in',
     icon: '🗺️',
     color: 'purple',
   },
@@ -147,6 +159,7 @@ const SYSTEMS: SystemStatus[] = [
     description: 'Stock Holding Corporation of India\'s national e-stamping portal for stamp duty verification on land deeds.',
     status: 'live',
     lastSync: '3 min ago',
+    apiEndpoint: 'https://www.shcilestamp.com',
     icon: '🔏',
     color: 'indigo',
   },
@@ -158,6 +171,7 @@ const SYSTEMS: SystemStatus[] = [
     description: 'MGNREGA geo-tagged asset database — cross-references land development activities against registered parcels.',
     status: 'live',
     lastSync: '1 hour ago',
+    apiEndpoint: 'https://nrega.nic.in',
     icon: '👷',
     color: 'green',
   },
@@ -169,6 +183,7 @@ const SYSTEMS: SystemStatus[] = [
     description: 'Aadhaar-based identity verification for citizen registration and ownership claim validation.',
     status: 'live',
     lastSync: 'Real-time',
+    apiEndpoint: 'https://uidai.gov.in',
     icon: '🆔',
     color: 'orange',
   },
@@ -345,9 +360,23 @@ export default function IntegrationsPage() {
                           {sys.recordCount && (
                             <span className="text-xs text-emerald-700 font-semibold">{sys.recordCount} records</span>
                           )}
+                          {/* Access-level badge */}
+                          {['bhuvan_isro', 'datagov'].includes(sys.id) && (
+                            <span className="text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 px-2 py-0.5 rounded-full">✅ Free API</span>
+                          )}
+                          {['dilrmp','doris','cors_network'].includes(sys.id) && (
+                            <span className="text-xs font-bold bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-full">🔒 Govt. Only</span>
+                          )}
+                          {!['bhuvan_isro','datagov','dilrmp','doris','cors_network'].includes(sys.id) && (
+                            <span className="text-xs font-bold bg-blue-50 text-blue-600 border border-blue-200 px-2 py-0.5 rounded-full">🌐 Public Website</span>
+                          )}
                           {sys.apiEndpoint && (
-                            <a href="#" onClick={e => e.preventDefault()}
-                              className="text-xs text-blue-600 flex items-center gap-0.5 hover:underline font-mono">
+                            <a
+                              href={sys.apiEndpoint}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 flex items-center gap-0.5 hover:underline font-mono"
+                            >
                               {sys.apiEndpoint.replace('https://', '')} <ExternalLink size={9} />
                             </a>
                           )}
@@ -410,16 +439,32 @@ export default function IntegrationsPage() {
               ))}
             </div>
 
-            {/* API key notice */}
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-              <p className="text-xs font-bold text-blue-800 mb-2 flex items-center gap-1.5">
-                <Shield size={12} /> For Production Deployment
-              </p>
-              <p className="text-xs text-blue-700 leading-relaxed">
-                Real DILRMP integration requires a government-issued API key via NIC (National Informatics Centre). ISRO Bhuvan WMS is publicly accessible. State LRMS APIs are available through state IT departments under the PMGSY framework.
-              </p>
-              <Link href="/map" className="inline-flex items-center gap-1 mt-2 text-xs text-blue-700 font-semibold hover:underline">
-                View GIS Map with Bhuvan Layer <ArrowRight size={10} />
+            {/* Honest access guide */}
+            <div className="space-y-3">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+                <p className="text-xs font-bold text-emerald-800 mb-2 flex items-center gap-1.5">
+                  ✅ Free — Available Right Now
+                </p>
+                <ul className="space-y-1.5">
+                  <li className="text-xs text-emerald-700"><strong>ISRO Bhuvan WMS</strong> — Free satellite + cadastral map layers. Register at bhuvan.nrsc.gov.in</li>
+                  <li className="text-xs text-emerald-700"><strong>data.gov.in API</strong> — Free JSON API for land datasets. Get API key at data.gov.in (instant)</li>
+                  <li className="text-xs text-emerald-700"><strong>OpenStreetMap</strong> — Already integrated. Completely free, no key needed</li>
+                </ul>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                <p className="text-xs font-bold text-amber-800 mb-2">🌐 Public Websites — No API, Manual Only</p>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  UP Bhulekh, MahaBhulekh, Meebhoomi, Bhoomi Karnataka — these are <strong>public websites</strong> anyone can visit and search. But they have <strong>no public machine-readable API</strong>. You can only read data by visiting the website manually.
+                </p>
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                <p className="text-xs font-bold text-red-800 mb-2">🔒 Requires Govt. Authorization</p>
+                <p className="text-xs text-red-700 leading-relaxed">
+                  DILRMP, UIDAI eKYC, e-Stamping — API access requires an <strong>MoU with NIC / respective ministry</strong>. Only approved government vendors get access. Not possible for a hackathon prototype.
+                </p>
+              </div>
+              <Link href="/map" className="flex items-center justify-center gap-1.5 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-700 font-semibold hover:bg-slate-50 transition-colors">
+                View GIS Map with Live Satellite Layer <ArrowRight size={11} />
               </Link>
             </div>
           </div>
