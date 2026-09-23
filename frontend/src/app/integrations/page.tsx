@@ -12,6 +12,7 @@ import {
   RefreshCw, Database, Map, Satellite, Globe2,
   ArrowRight, Download, Server, Shield, Zap, ExternalLink,
 } from 'lucide-react';
+import DataGovWidget from '@/components/DataGovWidget';
 
 interface SystemStatus {
   id: string;
@@ -468,6 +469,17 @@ export default function IntegrationsPage() {
               </Link>
             </div>
           </div>
+        </div>
+
+        {/* ── data.gov.in Live Data ─────────────────────────────────── */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">📊</span>
+            <h3 className="font-bold text-slate-800">Live Government Datasets</h3>
+            <span className="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-300">✅ Free API</span>
+            <span className="text-xs text-slate-400">data.gov.in · Official Govt. of India Open Data</span>
+          </div>
+          <DataGovWidget />
         </div>
       </div>
     </div>
