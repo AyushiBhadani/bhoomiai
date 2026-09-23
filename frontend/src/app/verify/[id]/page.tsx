@@ -193,6 +193,33 @@ export default function VerifyPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
+
+    // Demo fraud-alert IDs (9001–9003) don't exist in the DB — show inline demo record
+    const numericId = parseInt(docId, 10);
+    if (!isNaN(numericId) && numericId >= 9000) {
+      const DEMO_RECORDS: Record<number, { doc: Partial<Document>; record: Partial<ExtractedRecord> }> = {
+        9001: {
+          doc: { id: 9001, filename: 'patta_rampur_124_7.jpg', status: 'Needs Verification', upload_date: new Date().toISOString() },
+          record: { id: 9001, owner_name: 'Suresh Yadav', survey_number: '124/7', village: 'Rampur', district: 'Agra', area: 65000, land_classification: 'Agricultural', validation_status: 'needs_verification', validation_errors: [{ field: 'area', issue: 'Area mismatch: doc claims 6.5 Ha but GIS shows 2.5 Ha' }, { field: 'owner_name', issue: 'Duplicate claim: same survey number submitted by 2 users' }] },
+        },
+        9002: {
+          doc: { id: 9002, filename: 'sale_deed_45A_sitapur.pdf', status: 'Needs Verification', upload_date: new Date().toISOString() },
+          record: { id: 9002, owner_name: 'Rahul Mehta', survey_number: '45A', village: 'Sitapur Colony', district: 'Lucknow', area: 800, land_classification: 'Residential', validation_status: 'needs_verification', validation_errors: [{ field: 'owner_name', issue: 'Rapid transfer: survey 45A submitted 5 times in 12 months' }] },
+        },
+        9003: {
+          doc: { id: 9003, filename: 'khasra_200_1_agra.jpg', status: 'Verified', upload_date: new Date().toISOString() },
+          record: { id: 9003, owner_name: 'Priya Sharma', survey_number: '200/1', village: 'Industrial Area Phase II', district: 'Agra', area: 12000, land_classification: 'Industrial', validation_status: 'low_risk', validation_errors: [] },
+        },
+      };
+      const demo = DEMO_RECORDS[numericId];
+      if (demo) {
+        setDoc(demo.doc as Document);
+        setRecord(demo.record as ExtractedRecord);
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const docRes = await api.get(`/documents/${docId}`);
       const docData: Document = docRes.data;
@@ -211,7 +238,7 @@ export default function VerifyPage() {
         setRecord(firstRecord);
       }
     } catch {
-      setError('Could not load document. The backend may not be running.');
+      setError('Document not found. It may have been deleted, or the document ID does not exist in the system.');
     } finally {
       setLoading(false);
     }
@@ -313,13 +340,28 @@ export default function VerifyPage() {
 
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-        <XCircle size={48} className="text-red-400 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-gray-800 mb-2">Failed to Load</h2>
-        <p className="text-sm text-gray-500 mb-6">{error}</p>
-        <Link href="/dashboard" className="text-green-700 hover:underline text-sm">
-          ← Back to Dashboard
-        </Link>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200 shadow-xl p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <XCircle size={32} className="text-red-500" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Document Not Found</h2>
+          <p className="text-sm text-slate-500 mb-6 leading-relaxed">{error}</p>
+          <div className="flex flex-col gap-3">
+            <Link href="/verify"
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors">
+              View All Pending Documents
+            </Link>
+            <Link href="/fraud"
+              className="w-full border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold py-2.5 rounded-xl text-sm transition-colors">
+              ← Back to Fraud Alerts
+            </Link>
+            <Link href="/dashboard"
+              className="text-sm text-slate-400 hover:text-slate-600 transition-colors">
+              Go to Dashboard
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

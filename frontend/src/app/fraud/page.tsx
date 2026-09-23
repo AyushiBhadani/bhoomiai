@@ -258,10 +258,22 @@ export default function FraudAlertsPage() {
                         <Eye size={12} /> Review
                         <ChevronRight size={12} />
                       </Link>
-                      <button className="flex items-center gap-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl transition-colors">
+                      <button
+                        onClick={() => {
+                          setAlerts(prev => prev.map(a =>
+                            a.document_id === alert.document_id
+                              ? { ...a, risk_level: 'CLEAN' as const, risk_flags: [], risk_score: 0 }
+                              : a
+                          ));
+                        }}
+                        className="flex items-center gap-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl transition-colors">
                         <CheckCircle size={12} /> Clear Flag
                       </button>
-                      <button className="flex items-center gap-1.5 text-xs font-medium bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-xl transition-colors">
+                      <button
+                        onClick={() => {
+                          setAlerts(prev => prev.filter(a => a.document_id !== alert.document_id));
+                        }}
+                        className="flex items-center gap-1.5 text-xs font-medium bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-xl transition-colors">
                         <XCircle size={12} /> Reject Doc
                       </button>
                     </div>
