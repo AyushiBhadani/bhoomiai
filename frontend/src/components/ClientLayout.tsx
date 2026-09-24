@@ -9,8 +9,12 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Exclude sidebar on login/auth/public routes
-  const noSidebar = pathname === '/login' || pathname?.startsWith('/auth') || pathname === '/citizen';
+  // Exclude sidebar on login/auth/public routes and ALL citizen pages
+  const noSidebar =
+    pathname === '/login' ||
+    pathname?.startsWith('/auth') ||
+    pathname?.startsWith('/citizen') ||   // covers /citizen, /citizen/login, /citizen/register, /citizen/dashboard
+    pathname?.startsWith('/verify-cert');  // public certificate verification
   if (noSidebar) {
     return <>{children}</>;
   }

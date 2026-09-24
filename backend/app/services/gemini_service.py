@@ -101,7 +101,7 @@ def gemini_chat(
         parts.append(f"\n\nQuestion: {question}")
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash",
+            model="gemini-1.5-flash",
             contents="\n".join(parts),
         )
         return response.text.strip()
@@ -181,7 +181,7 @@ def gemini_extract_from_image(image_path: str) -> dict:
             img = img.convert("RGB")
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash",
+            model="gemini-1.5-flash",
             contents=[EXTRACTION_PROMPT, img],
         )
 
@@ -280,7 +280,7 @@ Extract and correct the land record information. Return ONLY valid JSON:
 Use null for fields not found. Return ONLY JSON."""
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash",
+            model="gemini-1.5-flash",
             contents=prompt,
         )
         raw = response.text.strip()
@@ -318,7 +318,7 @@ TEXT:
 Provide only the English translation, no explanation."""
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash",
+            model="gemini-1.5-flash",
             contents=prompt,
         )
         return response.text.strip()

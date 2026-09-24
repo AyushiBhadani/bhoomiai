@@ -45,12 +45,12 @@ interface ExtractionResult {
 // Pipeline stages shown during processing
 // ─────────────────────────────────────────────────────────────────────────────
 const PIPELINE_STAGES = [
-  { id: 'upload',     label: 'File Upload',           icon: Upload,      color: 'text-blue-400',   duration: 500  },
-  { id: 'preprocess', label: 'Image Enhancement',     icon: Camera,      color: 'text-purple-400', duration: 1200 },
-  { id: 'ocr',        label: 'Tesseract OCR',         icon: FileSearch,  color: 'text-amber-400',  duration: 2000 },
-  { id: 'gemini',     label: 'Gemini Vision AI',      icon: Brain,       color: 'text-emerald-400',duration: 2500 },
-  { id: 'structure',  label: 'Field Structuring',     icon: Sparkles,    color: 'text-pink-400',   duration: 800  },
-  { id: 'validate',   label: 'Cross-Validation',      icon: ShieldCheck, color: 'text-teal-400',   duration: 600  },
+  { id: 'upload',     label: 'File Upload',           icon: Upload,      color: 'text-blue-400',   duration: 200  },
+  { id: 'preprocess', label: 'Image Enhancement',     icon: Camera,      color: 'text-purple-400', duration: 300  },
+  { id: 'ocr',        label: 'Tesseract OCR',         icon: FileSearch,  color: 'text-amber-400',  duration: 200  },
+  { id: 'gemini',     label: 'Gemini Vision AI',      icon: Brain,       color: 'text-emerald-400',duration: 300  },
+  { id: 'structure',  label: 'Field Structuring',     icon: Sparkles,    color: 'text-pink-400',   duration: 200  },
+  { id: 'validate',   label: 'Cross-Validation',      icon: ShieldCheck, color: 'text-teal-400',   duration: 200  },
 ];
 
 const FIELD_LABELS: Record<string, string> = {

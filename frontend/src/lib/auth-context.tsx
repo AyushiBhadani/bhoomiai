@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 /**
  * AuthContext — BhoomiAI authentication & session management.
@@ -64,9 +64,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     persistSession(userData, access_token);
   }, [persistSession]);
 
-  const loginAsDemo = useCallback((role: 'admin' | 'officer' | 'verifier' = 'admin') => {
-    persistSession(DEMO_USERS[role], `demo-token-${role}`);
-  }, [persistSession]);
+  const loginAsDemo = useCallback(async (role: 'admin' | 'officer' | 'verifier' = 'admin') => {
+    // Use real seeded backend credentials so JWT passes server validation
+    const DEMO_CREDS: Record<string, { email: string; password: string }> = {
+      admin:    { email: 'admin@bhoomi.gov.in',   password: 'admin123' },
+      officer:  { email: 'officer@bhoomi.gov.in', password: 'officer123' },
+      verifier: { email: 'officer@bhoomi.gov.in', password: 'officer123' },
+    };
+    try {
+      await login(DEMO_CREDS[role].email, DEMO_CREDS[role].password);
+    } catch {
+      // Fallback to local demo session if backend is offline (Render cold start)
+      persistSession(DEMO_USERS[role], `demo-token-${role}`);
+    }
+  }, [login, persistSession]);
 
   const logout = useCallback(() => {
     localStorage.removeItem('bhoomi_token');

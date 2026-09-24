@@ -296,13 +296,35 @@ async def upload_document(
       8. Update document status  "Verified" or "Needs Verification"
       9. Return document + record dict
     """
-    #  1. Save file 
+    # ── Security: validate file type and size ──────────────────────────────
+    ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tiff", ".tif", ".bmp", ".pdf"}
+    MAX_FILE_SIZE_MB = 10
+
+    fname = file.filename or ""
+    ext = os.path.splitext(fname)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"File type '{ext}' not allowed. Upload JPG, PNG, TIFF, BMP, or PDF only.",
+        )
+
+    # Read file into memory to check size (stream-safe)
+    file_bytes = await file.read()
+    if len(file_bytes) > MAX_FILE_SIZE_MB * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size exceeds {MAX_FILE_SIZE_MB} MB limit.",
+        )
+
+    # Sanitize filename — remove path traversal chars
+    import re
+    safe_name_base = re.sub(r"[^\w\-.]", "_", os.path.basename(fname))
     os.makedirs(UPLOAD_DIR, exist_ok=True)
-    safe_filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+    safe_filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{safe_name_base}"
     file_path = os.path.join(UPLOAD_DIR, safe_filename)
 
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        buffer.write(file_bytes)
 
     logger.info("Saved upload: %s", file_path)
 
@@ -318,8 +340,7 @@ async def upload_document(
     db.commit()
     db.refresh(document)
 
-    #  3. OCR + Gemini Vision Extraction
-    ext = os.path.splitext(file.filename)[1].lower()
+    #  3. OCR + Gemini Vision Extraction  (ext already defined above)
     if ext == ".pdf":
         raw_text = ocr_service.extract_text_from_pdf(file_path)
     else:
@@ -568,9 +589,11 @@ def correct_record_field(
 def approve_record(
     record_id: int,
     db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: User = Depends(get_current_active_user),
 ):
-    """Mark a record's document as Verified (officer approval)."""
+    """Mark a record's document as Verified (officer approval). Requires staff role."""
+    if current_user.role not in ("admin", "officer", "verifier"):
+        raise HTTPException(status_code=403, detail="Only admin/officer/verifier can approve records")
     record = db.query(ExtractedRecord).filter(ExtractedRecord.id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Record not found")
@@ -592,9 +615,11 @@ def approve_record(
 def reject_record(
     record_id: int,
     db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: User = Depends(get_current_active_user),
 ):
-    """Mark a record's document as Failed (officer rejection)."""
+    """Mark a record's document as Failed (officer rejection). Requires staff role."""
+    if current_user.role not in ("admin", "officer", "verifier"):
+        raise HTTPException(status_code=403, detail="Only admin/officer/verifier can reject records")
     record = db.query(ExtractedRecord).filter(ExtractedRecord.id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Record not found")
@@ -1497,11 +1522,32 @@ async def citizen_upload_document(
     db: Session = Depends(get_db),
 ):
     """Citizen uploads their land document for digitization and verification."""
+    # ── Security: validate file type and size ──────────────────────────────
+    ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tiff", ".tif", ".bmp", ".pdf"}
+    MAX_FILE_SIZE_MB = 10
+
+    fname = file.filename or ""
+    ext_c = os.path.splitext(fname)[1].lower()
+    if ext_c not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"File type '{ext_c}' not allowed. Upload JPG, PNG, TIFF, BMP, or PDF only.",
+        )
+
+    file_bytes_c = await file.read()
+    if len(file_bytes_c) > MAX_FILE_SIZE_MB * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size exceeds {MAX_FILE_SIZE_MB} MB limit.",
+        )
+
+    import re as _re
+    safe_name_c = _re.sub(r"[^\w\-.]", "_", os.path.basename(fname))
     os.makedirs(UPLOAD_DIR, exist_ok=True)
-    safe_filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+    safe_filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{safe_name_c}"
     file_path = os.path.join(UPLOAD_DIR, safe_filename)
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        buffer.write(file_bytes_c)
 
     document = Document(
         filename=file.filename,

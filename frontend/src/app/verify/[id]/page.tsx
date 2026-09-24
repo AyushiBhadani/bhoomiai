@@ -442,7 +442,7 @@ export default function VerifyPage() {
             {/* Document Preview */}
             <div className="relative bg-slate-100 rounded-xl overflow-hidden border border-slate-200" style={{minHeight: '400px'}}>
               <img
-                src={`http://localhost:8000/api/documents/${docId}/image`}
+                src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/documents/${docId}/image`}
                 alt="Document scan"
                 className="w-full object-contain"
                 onError={(e) => {

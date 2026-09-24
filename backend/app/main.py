@@ -70,7 +70,7 @@ def _seed_demo_data():
                 is_active=True,
             )
             db.add(admin)
-            logger.info("Seeded demo admin user: admin@bhoomi.gov.in / admin123")
+            logger.info("Seeded demo admin user.")
 
         # Seed demo officer
         if not db.query(User).filter(User.email == "officer@bhoomi.gov.in").first():
@@ -122,13 +122,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Allow the Next.js frontend (and any origin during development)
+# Allow the Next.js frontend origins (add your Render URL here)
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,https://bhoomiai-1-xa0e.onrender.com,https://bhoomiai.onrender.com"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
 
 # Mount all API routes under /api prefix

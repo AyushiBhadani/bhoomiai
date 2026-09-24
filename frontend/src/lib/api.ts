@@ -20,14 +20,16 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 globally — clear stale tokens
+// Handle 401 globally — clear all stale tokens and redirect to login
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
+        localStorage.removeItem('bhoomi_token');
         localStorage.removeItem('user');
+        // Don't clear citizen_token here — citizen auth is independent
       }
     }
     return Promise.reject(error);
