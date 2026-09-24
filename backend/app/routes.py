@@ -1261,7 +1261,9 @@ def approve_mutation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Digitally sign and approve a mutation. Generates immutable blockchain hash."""
+    """Digitally sign and approve a mutation. Generates immutable blockchain hash. Requires officer/admin."""
+    if current_user.role not in ("admin", "officer", "verifier"):
+        raise HTTPException(status_code=403, detail="Only admin/officer/verifier can approve mutations")
     import hashlib
     r = db.query(ExtractedRecord).filter(ExtractedRecord.id == record_id).first()
     if not r:
@@ -1283,7 +1285,9 @@ def reject_mutation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Reject a mutation request."""
+    """Reject a mutation request. Requires officer/admin."""
+    if current_user.role not in ("admin", "officer", "verifier"):
+        raise HTTPException(status_code=403, detail="Only admin/officer/verifier can reject mutations")
     r = db.query(ExtractedRecord).filter(ExtractedRecord.id == record_id).first()
     if not r:
         raise HTTPException(status_code=404, detail="Record not found")

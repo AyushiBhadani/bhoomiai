@@ -216,12 +216,14 @@ export default function LoginPage() {
             )}
           </div>
 
-          {/* Credentials hint */}
-          <div className="mt-6 bg-slate-100 rounded-xl p-4 text-xs text-slate-500">
-            <p className="font-semibold text-slate-700 mb-2">Real login credentials:</p>
-            <p>admin@bhoomi.gov.in / <span className="font-mono">password</span></p>
-            <p>officer@bhoomi.gov.in / <span className="font-mono">password</span></p>
-            <p>verifier@bhoomi.gov.in / <span className="font-mono">password</span></p>
+          {/* Demo credentials hint — SIH presentation only */}
+          <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs">
+            <p className="font-bold text-amber-800 mb-2">🎓 SIH Demo Credentials</p>
+            <div className="space-y-1 font-mono text-amber-700">
+              <p>admin@bhoomi.gov.in / <strong>admin123</strong></p>
+              <p>officer@bhoomi.gov.in / <strong>officer123</strong></p>
+            </div>
+            <p className="text-amber-600 mt-2 font-sans">Or use the Quick Login buttons above ↑</p>
           </div>
 
           {/* Citizen Portal separator */}

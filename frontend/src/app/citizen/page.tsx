@@ -406,15 +406,21 @@ export default function CitizenPortalPage() {
 
                       {/* Action buttons */}
                       <div className="flex flex-col gap-2 flex-shrink-0">
-                        <a
-                          href={`${API}/documents/${rec.document_id}/image`}
-                          target="_blank" rel="noreferrer"
-                          className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-xl transition-colors"
-                        >
-                          <Download size={12} /> Download RoR
-                        </a>
+                        {rec.document_id ? (
+                          <a
+                            href={`${API}/documents/${rec.document_id}/image`}
+                            target="_blank" rel="noreferrer"
+                            className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-xl transition-colors"
+                          >
+                            <Download size={12} /> Download RoR
+                          </a>
+                        ) : (
+                          <span className="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl cursor-not-allowed">
+                            <Download size={12} /> No Document
+                          </span>
+                        )}
                         <Link
-                          href={`/verify/${rec.id}`}
+                          href={rec.document_id ? `/verify/${rec.document_id}` : '#'}
                           className="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-2 rounded-xl transition-colors"
                         >
                           View Details <ChevronRight size={12} />

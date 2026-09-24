@@ -88,9 +88,17 @@ export default function MutationWorkbenchPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // In a real app we would fetch this from /api/mutations
-      // For now, load demo data with a slight delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Try real backend first — returns {mutations: [...], total: N}
+      const res = await api.get('/mutations');
+      const data = res.data?.mutations ?? res.data ?? [];
+      if (Array.isArray(data) && data.length > 0) {
+        setMutations(data);
+      } else {
+        // Empty DB — show demo data for the presentation
+        setMutations(DEMO_MUTATIONS);
+      }
+    } catch {
+      // Backend offline / auth failed — fallback to demo
       setMutations(DEMO_MUTATIONS);
     } finally {
       setLoading(false);

@@ -239,7 +239,8 @@ def translate_text(text: str, target_lang: str, source_lang: str = "en") -> str:
     Returns:
         Translated text string
     """
-    if target_lang == source_lang or target_lang == "en":
+    # Skip only when source and target are the same language
+    if target_lang == source_lang:
         return text
 
     # Try Bhashini first
@@ -257,7 +258,7 @@ Keep technical codes and numbers as-is (Survey No, Khasra No, area values).
 TEXT: {text}
 Provide ONLY the translation, nothing else."""
         response = client.models.generate_content(
-            model="gemini-3.5-flash",
+            model="gemini-1.5-flash",
             contents=prompt,
         )
         return response.text.strip()
@@ -326,6 +327,8 @@ def translate_query(query: str, source_lang: str) -> str:
     Translate a user search query from any Indian language to English
     so it can be used to search the database.
     """
-    if source_lang == "en":
+    if source_lang == "en" or not source_lang:
         return query
+    # translate_text(text, target_lang, source_lang)
+    # We want: source=source_lang → target=en
     return translate_text(query, "en", source_lang)
