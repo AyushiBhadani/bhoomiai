@@ -29,16 +29,26 @@ interface ExtractionField {
   confidence: 'high' | 'medium' | 'low' | string;
 }
 
+interface RuleCheck {
+  rule: string;
+  description: string;
+  status: 'passed' | 'failed';
+  detail: string;
+}
+
 interface ExtractionResult {
   document_id: number;
   record_id: number;
   filename: string;
   gemini_enhanced: boolean;
+  ocr_engine: string;
+  rate_limited: boolean;
   ocr_raw_text: string;
   fields: ExtractionField[];
   validation_status: string;
   validation_errors: { field: string; issue: string }[];
   confidence_scores: Record<string, string | number>;
+  rule_checks: RuleCheck[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -173,11 +183,14 @@ export default function ExtractPage() {
         record_id: record.id,
         filename: data.filename,
         gemini_enhanced: data.gemini_enhanced ?? false,
+        ocr_engine: data.ocr_engine ?? 'regex',
+        rate_limited: data.rate_limited ?? false,
         ocr_raw_text: record.ocr_raw_text ?? '',
         fields,
         validation_status: record.validation_status ?? 'Pending',
         validation_errors: record.validation_errors ?? [],
         confidence_scores: conf,
+        rule_checks: data.rule_checks ?? [],
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Upload failed';
@@ -564,7 +577,7 @@ export default function ExtractPage() {
                     ? 'bg-emerald-50 border-emerald-200'
                     : 'bg-amber-50 border-amber-200'
                 }`}>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {result.validation_status === 'Passed'
                       ? <CheckCircle size={16} className="text-emerald-600" />
                       : <AlertTriangle size={16} className="text-amber-600" />
@@ -574,9 +587,22 @@ export default function ExtractPage() {
                     }`}>
                       Validation: {result.validation_status}
                     </span>
-                    {result.gemini_enhanced && (
+
+                    {/* OCR Engine Badge */}
+                    {result.ocr_engine?.includes('gemini') && (
                       <span className="text-xs font-bold text-purple-600 bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <Sparkles size={10} /> Gemini Enhanced
+                        <Sparkles size={10} />
+                        {result.ocr_engine.includes('pro') ? 'Gemini 1.5 Pro' : 'Gemini 1.5 Flash'}
+                      </span>
+                    )}
+                    {result.ocr_engine === 'paddleocr-local' && (
+                      <span className="text-xs font-bold text-blue-600 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        🐾 PaddleOCR (Local Engine)
+                      </span>
+                    )}
+                    {result.ocr_engine === 'tesseract' && (
+                      <span className="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                        Tesseract OCR
                       </span>
                     )}
                   </div>
@@ -588,11 +614,76 @@ export default function ExtractPage() {
                   </button>
                 </div>
 
+                {/* Rate limit warning */}
+                {result.rate_limited && (
+                  <div className="flex items-start gap-3 bg-amber-50 border border-amber-300 rounded-xl p-3">
+                    <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-amber-800 font-bold text-sm">Gemini API rate limit reached</p>
+                      <p className="text-amber-700 text-xs mt-0.5">
+                        Automatically switched to local PaddleOCR engine. No data was lost.
+                        Extraction continues without interruption.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── RULE ENGINE PANEL ─────────────────────────────────── */}
+                {result.rule_checks && result.rule_checks.length > 0 && (
+                  <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <div className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-slate-100 flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-indigo-800 flex items-center gap-2">
+                        <ShieldCheck size={14} className="text-indigo-600" />
+                        Deterministic Rule Engine
+                        <span className="text-xs font-normal text-indigo-500 bg-indigo-100 px-2 py-0.5 rounded-full">
+                          Independent of AI
+                        </span>
+                      </h3>
+                      <span className="text-xs text-slate-400">
+                        {result.rule_checks.filter(c => c.status === 'passed').length}/{result.rule_checks.length} passed
+                      </span>
+                    </div>
+                    <div className="divide-y divide-slate-50">
+                      {result.rule_checks.map((check, i) => (
+                        <div key={i} className={`flex items-start gap-3 px-4 py-3 ${
+                          check.status === 'failed' ? 'bg-red-50/50' : ''
+                        }`}>
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                            check.status === 'passed'
+                              ? 'bg-emerald-100'
+                              : 'bg-red-100'
+                          }`}>
+                            {check.status === 'passed'
+                              ? <CheckCircle size={12} className="text-emerald-600" />
+                              : <AlertTriangle size={12} className="text-red-600" />
+                            }
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className={`text-xs font-bold ${
+                                check.status === 'passed' ? 'text-slate-700' : 'text-red-700'
+                              }`}>{check.rule}</p>
+                              <span className={`text-xs font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${
+                                check.status === 'passed'
+                                  ? 'text-emerald-700 bg-emerald-100'
+                                  : 'text-red-700 bg-red-100'
+                              }`}>
+                                {check.status === 'passed' ? '✓ Pass' : '✗ Fail'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">{check.detail}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Extracted fields grid */}
                 <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                   <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                     <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                      <FileText size={14} /> Extracted Fields
+                      <FileText size={14} /> AI Extracted Fields
                     </h3>
                     <span className="text-xs text-slate-400">
                       {result.fields.filter(f => f.value !== null).length}/{result.fields.length} extracted

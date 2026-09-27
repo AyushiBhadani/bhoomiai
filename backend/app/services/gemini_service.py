@@ -222,6 +222,11 @@ def gemini_extract_from_image(image_path: str, model: str = None) -> dict:
         logger.error("Gemini Vision returned invalid JSON: %s", e)
         return {}
     except Exception as e:
+        err_str = str(e).lower()
+        # Detect rate limit (429) — signal to caller to use local fallback
+        if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str or "rate" in err_str:
+            logger.warning("Gemini rate limit hit — signaling fallback to local OCR pipeline")
+            return {"_rate_limited": True}
         logger.error("Gemini Vision extraction failed: %s", e)
         return {}
 
