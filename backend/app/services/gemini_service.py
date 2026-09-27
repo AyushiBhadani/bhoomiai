@@ -78,17 +78,30 @@ Use bullet points for lists. Use bold for key terms.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  Available Models — Flash (fast, free) vs Pro (smarter, still free)
+# ─────────────────────────────────────────────────────────────────────────────
+
+GEMINI_FLASH = "gemini-1.5-flash"   # Fast, 15 req/min free — good for most docs
+GEMINI_PRO   = "gemini-1.5-pro"     # Smarter, 2 req/min free — best for faded/complex docs
+
+# Default model used across the app
+DEFAULT_MODEL = GEMINI_FLASH
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  1. Gemini Chat — Land Record Q&A
 # ─────────────────────────────────────────────────────────────────────────────
 
 def gemini_chat(
     question: str,
     record_context: Optional[dict] = None,
+    model: str = None,
 ) -> str:
     """
-    Answer a question about land records using Gemini 2.0 Flash.
-    Includes optional record context for specific questions.
+    Answer a question about land records using Gemini.
+    model: pass GEMINI_FLASH or GEMINI_PRO. Defaults to DEFAULT_MODEL.
     """
+    use_model = model or DEFAULT_MODEL
     try:
         client = _get_client()
 
@@ -101,7 +114,7 @@ def gemini_chat(
         parts.append(f"\n\nQuestion: {question}")
 
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model=use_model,
             contents="\n".join(parts),
         )
         return response.text.strip()
@@ -162,11 +175,13 @@ Critical rules:
 - Return ONLY the JSON object — no markdown, no explanation, no preamble
 """
 
-def gemini_extract_from_image(image_path: str) -> dict:
+def gemini_extract_from_image(image_path: str, model: str = None) -> dict:
     """
     Use Gemini Vision to extract structured fields from a scanned land document.
     Handles faded, torn, handwritten, and multi-language documents.
+    model: pass GEMINI_FLASH (fast) or GEMINI_PRO (smarter). Defaults to DEFAULT_MODEL.
     """
+    use_model = model or DEFAULT_MODEL
     try:
         from google import genai
         from google.genai import types
@@ -181,7 +196,7 @@ def gemini_extract_from_image(image_path: str) -> dict:
             img = img.convert("RGB")
 
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model=use_model,
             contents=[EXTRACTION_PROMPT, img],
         )
 
@@ -241,11 +256,13 @@ def gemini_extract_from_pdf_page(pdf_path: str, page_num: int = 0) -> dict:
 #  3. Gemini OCR Correction — Fix garbled text from Tesseract
 # ─────────────────────────────────────────────────────────────────────────────
 
-def gemini_correct_ocr(raw_text: str) -> dict:
+def gemini_correct_ocr(raw_text: str, model: str = None) -> dict:
     """
     Given raw OCR text (possibly garbled), use Gemini to extract and correct
     land record fields. Text-only — no image required.
+    model: GEMINI_FLASH or GEMINI_PRO
     """
+    use_model = model or DEFAULT_MODEL
     try:
         client = _get_client()
 
@@ -280,7 +297,7 @@ Extract and correct the land record information. Return ONLY valid JSON:
 Use null for fields not found. Return ONLY JSON."""
 
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model=use_model,
             contents=prompt,
         )
         raw = response.text.strip()
@@ -300,11 +317,13 @@ Use null for fields not found. Return ONLY JSON."""
 #  4. Gemini Translation — Translate land record text to English
 # ─────────────────────────────────────────────────────────────────────────────
 
-def gemini_translate(text: str, source_language: str = "auto") -> str:
+def gemini_translate(text: str, source_language: str = "auto", model: str = None) -> str:
     """
     Translate land record text from any Indian language to English.
     Used when OCR extracts Hindi/Marathi/Tamil text.
+    model: GEMINI_FLASH or GEMINI_PRO
     """
+    use_model = model or DEFAULT_MODEL
     try:
         client = _get_client()
 
@@ -318,7 +337,7 @@ TEXT:
 Provide only the English translation, no explanation."""
 
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model=use_model,
             contents=prompt,
         )
         return response.text.strip()

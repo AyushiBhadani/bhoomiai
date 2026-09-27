@@ -281,6 +281,7 @@ def get_document(
 @router.post("/documents/upload", tags=["Documents"])
 async def upload_document(
     file: UploadFile = File(...),
+    ai_model: str = Form("flash"),   # "flash" or "pro"
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_user),
 ):
@@ -289,7 +290,7 @@ async def upload_document(
       1. Save uploaded file to disk
       2. Create Document entry (status = "Processing")
       3. Run OCR  extract text
-      4. Extract fields from text
+      4. Extract fields from text (Gemini Flash or Pro based on ai_model param)
       5. Calculate confidence scores
       6. Create ExtractedRecord
       7. Run validation rules
@@ -326,9 +327,9 @@ async def upload_document(
     with open(file_path, "wb") as buffer:
         buffer.write(file_bytes)
 
-    logger.info("Saved upload: %s", file_path)
+    logger.info("Saved upload: %s (model=%s)", file_path, ai_model)
 
-    #  2. Create Document record 
+    #  2. Create Document record
     document = Document(
         filename=file.filename,
         filepath=file_path,
@@ -339,6 +340,10 @@ async def upload_document(
     db.add(document)
     db.commit()
     db.refresh(document)
+
+    # Resolve model name — "pro" uses Gemini 1.5 Pro, everything else uses Flash
+    from app.services.gemini_service import GEMINI_FLASH, GEMINI_PRO
+    chosen_model = GEMINI_PRO if ai_model == "pro" else GEMINI_FLASH
 
     #  3. OCR + Gemini Vision Extraction  (ext already defined above)
     if ext == ".pdf":
@@ -351,13 +356,13 @@ async def upload_document(
     try:
         from app.services import gemini_service
         if ext in (".jpg", ".jpeg", ".png", ".tiff", ".tif", ".bmp"):
-            gemini_fields = gemini_service.gemini_extract_from_image(file_path)
+            gemini_fields = gemini_service.gemini_extract_from_image(file_path, model=chosen_model)
         elif ext == ".pdf":
             gemini_fields = gemini_service.gemini_extract_from_pdf_page(file_path, 0)
         # Also try OCR correction if we have raw text but no gemini image result
         if not gemini_fields and raw_text and raw_text != ocr_service.FALLBACK_OCR_TEXT:
-            gemini_fields = gemini_service.gemini_correct_ocr(raw_text)
-        logger.info("Gemini extracted %d fields from %s", len(gemini_fields), file.filename)
+            gemini_fields = gemini_service.gemini_correct_ocr(raw_text, model=chosen_model)
+        logger.info("Gemini (%s) extracted %d fields from %s", chosen_model, len(gemini_fields), file.filename)
     except Exception as e:
         logger.warning("Gemini extraction skipped: %s", e)
 

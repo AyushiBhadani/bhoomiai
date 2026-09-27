@@ -98,6 +98,8 @@ export default function ExtractPage() {
   const [stageIndex, setStageIndex] = useState(0);
   const [result, setResult]       = useState<ExtractionResult | null>(null);
   const [error, setError]         = useState<string | null>(null);
+  // Model selection: "flash" = fast & free | "pro" = smarter & still free
+  const [aiModel, setAiModel]     = useState<'flash' | 'pro'>('flash');
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -131,19 +133,26 @@ export default function ExtractPage() {
     setResult(null);
     setError(null);
 
+    // Update stage label to show chosen model
+    const modelLabel = aiModel === 'pro' ? 'Gemini 1.5 Pro AI' : 'Gemini 1.5 Flash AI';
+    const stages = PIPELINE_STAGES.map(s =>
+      s.id === 'gemini' ? { ...s, label: modelLabel } : s
+    );
+
     // Animate through stages
-    for (let i = 0; i < PIPELINE_STAGES.length; i++) {
+    for (let i = 0; i < stages.length; i++) {
       setStageIndex(i);
-      setStage(PIPELINE_STAGES[i].id);
-      await new Promise(r => setTimeout(r, PIPELINE_STAGES[i].duration));
+      setStage(stages[i].id);
+      await new Promise(r => setTimeout(r, stages[i].duration));
     }
 
     try {
       const form = new FormData();
       form.append('file', file);
+      form.append('ai_model', aiModel);   // ← tell backend which model to use
       const res = await api.post('/documents/upload', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 60000,
+        timeout: aiModel === 'pro' ? 90000 : 60000,  // Pro needs more time
       });
 
       const data = res.data;
@@ -344,12 +353,70 @@ export default function ExtractPage() {
                   </div>
                 )}
                 {!isProcessing && !result && (
-                  <button
-                    onClick={runExtraction}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl transition-all shadow-md shadow-purple-500/20"
-                  >
-                    <Zap size={16} /> Run AI Extraction Pipeline
-                  </button>
+                  <div className="space-y-3">
+                    {/* ── AI Model Selector ── */}
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                        🤖 Choose AI Model
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => setAiModel('flash')}
+                          className={`flex flex-col items-start gap-0.5 p-3 rounded-xl border-2 transition-all text-left ${
+                            aiModel === 'flash'
+                              ? 'border-emerald-500 bg-emerald-50'
+                              : 'border-slate-200 bg-white hover:border-slate-300'
+                          }`}
+                        >
+                          <span className="flex items-center gap-1.5 font-bold text-sm text-slate-800">
+                            <Zap size={14} className="text-emerald-500" />
+                            Flash
+                            {aiModel === 'flash' && (
+                              <span className="ml-auto text-emerald-600 bg-emerald-100 text-xs px-1.5 py-0.5 rounded-full font-semibold">Selected</span>
+                            )}
+                          </span>
+                          <span className="text-xs text-slate-500">Fast · 15 req/min free</span>
+                          <span className="text-xs text-emerald-600 font-medium mt-1">Good for clear documents</span>
+                        </button>
+                        <button
+                          onClick={() => setAiModel('pro')}
+                          className={`flex flex-col items-start gap-0.5 p-3 rounded-xl border-2 transition-all text-left ${
+                            aiModel === 'pro'
+                              ? 'border-purple-500 bg-purple-50'
+                              : 'border-slate-200 bg-white hover:border-slate-300'
+                          }`}
+                        >
+                          <span className="flex items-center gap-1.5 font-bold text-sm text-slate-800">
+                            <Brain size={14} className="text-purple-500" />
+                            Pro
+                            {aiModel === 'pro' && (
+                              <span className="ml-auto text-purple-600 bg-purple-100 text-xs px-1.5 py-0.5 rounded-full font-semibold">Selected</span>
+                            )}
+                          </span>
+                          <span className="text-xs text-slate-500">Smarter · 50 req/day free</span>
+                          <span className="text-xs text-purple-600 font-medium mt-1">Best for faded/handwritten</span>
+                        </button>
+                      </div>
+                      {aiModel === 'pro' && (
+                        <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                          ⏱️ Pro model takes ~15–20 seconds. Worth the wait for complex documents.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* ── Extract Button ── */}
+                    <button
+                      onClick={runExtraction}
+                      className={`w-full flex items-center justify-center gap-2 text-white font-bold py-3 rounded-xl transition-all shadow-md ${
+                        aiModel === 'pro'
+                          ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-purple-500/20'
+                          : 'bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-500 hover:to-blue-500 shadow-emerald-500/20'
+                      }`}
+                    >
+                      <Zap size={16} />
+                      Run {aiModel === 'pro' ? 'Gemini 1.5 Pro' : 'Gemini 1.5 Flash'} Extraction
+                    </button>
+                  </div>
                 )}
               </div>
             )}
