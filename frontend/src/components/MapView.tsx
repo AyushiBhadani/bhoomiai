@@ -58,30 +58,52 @@ function getLandColor(classification?: string | null) {
   return DEFAULT_COLOR;
 }
 
-// Spread demo parcels across Agra region
-const DEMO_COORDS: Record<string, [number, number]> = {
-  '124/7':  [27.1767, 78.0081],
-  '45A':    [27.1902, 78.0241],
-  '99/3B':  [27.1630, 77.9980],
-  '200/1':  [27.1840, 78.0350],
-  '312':    [27.1700, 78.0180],
-};
-
-function getCoords(p: Parcel): [number, number] {
-  if (p.geometry_geojson?.coordinates) {
-    const c = p.geometry_geojson.coordinates;
-    if (Array.isArray(c) && c.length === 2) return [c[1] as number, c[0] as number];
-  }
-  return DEMO_COORDS[p.survey_number] ?? [27.1767 + Math.random() * 0.02, 78.0081 + Math.random() * 0.02];
+// Parse GeoJSON polygon coordinates → Leaflet [lat, lng][] format
+function getPolygonFromGeoJSON(p: Parcel): LatLngTuple[] | null {
+  try {
+    const geo = typeof p.geometry_geojson === 'string'
+      ? JSON.parse(p.geometry_geojson)
+      : p.geometry_geojson;
+    if (geo?.coordinates?.[0]) {
+      return (geo.coordinates[0] as [number, number][]).map(([lng, lat]) => [lat, lng] as LatLngTuple);
+    }
+  } catch { /* ignore */ }
+  return null;
 }
 
-function makePolygon(lat: number, lng: number, size = 0.003): LatLngTuple[] {
-  return [
-    [lat + size, lng - size],
-    [lat + size, lng + size],
-    [lat - size, lng + size],
-    [lat - size, lng - size],
-  ];
+// Get center [lat, lng] from GeoJSON center field or compute from polygon
+function getCenterFromGeoJSON(p: Parcel): [number, number] {
+  try {
+    const geo = typeof p.geometry_geojson === 'string'
+      ? JSON.parse(p.geometry_geojson)
+      : p.geometry_geojson;
+    if (geo?.center) return [geo.center[1], geo.center[0]];
+    if (geo?.coordinates?.[0]) {
+      const pts = geo.coordinates[0] as [number, number][];
+      const lat = pts.reduce((s, c) => s + c[1], 0) / pts.length;
+      const lng = pts.reduce((s, c) => s + c[0], 0) / pts.length;
+      return [lat, lng];
+    }
+  } catch { /* ignore */ }
+  // Fallback: spread across Agra region
+  const FALLBACK: Record<string, [number, number]> = {
+    '124/7': [27.1762, 78.0088], '45A': [27.1899, 78.0248], '99/3B': [27.1624, 77.9990],
+    '200/1': [27.1838, 78.0356], '312': [27.1692, 78.0198], '412/2': [27.1579, 78.0326],
+  };
+  return FALLBACK[p.survey_number] ?? [27.1767 + Math.random() * 0.02, 78.0081 + Math.random() * 0.02];
+}
+
+// Auto-fly to a specific parcel when highlighted
+function FlyToParcel({ parcels, highlightSurvey }: { parcels: Parcel[]; highlightSurvey?: string }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!highlightSurvey) return;
+    const target = parcels.find(p => p.survey_number === highlightSurvey);
+    if (!target) return;
+    const [lat, lng] = getCenterFromGeoJSON(target);
+    map.flyTo([lat, lng], 17, { animate: true, duration: 1.5 });
+  }, [map, parcels, highlightSurvey]);
+  return null;
 }
 
 function FitBounds({ coords }: { coords: [number, number][] }) {
@@ -107,7 +129,7 @@ export default function MapView({ parcels, highlightSurvey, onSelect }: MapViewP
   useEffect(() => { fixLeafletIcons(); }, []);
 
   const center: LatLngTuple = [27.1767, 78.0081];
-  const coords = parcels.map(getCoords);
+  const coords = parcels.map(getCenterFromGeoJSON);
 
   // Unique land types for legend
   const legendTypes = Array.from(
@@ -136,7 +158,6 @@ export default function MapView({ parcels, highlightSurvey, onSelect }: MapViewP
 
       <MapContainer center={center} zoom={13} style={{ width: '100%', height: '100%' }} className="z-0">
         {useSatellite ? (
-          // ESRI World Imagery (free, no key needed — used by ArcGIS/government portals)
           <TileLayer
             attribution='Tiles &copy; Esri &mdash; Source: Esri, Maxar, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community | <a href="https://bhuvan.nrsc.gov.in" target="_blank">ISRO Bhuvan</a>'
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -149,17 +170,28 @@ export default function MapView({ parcels, highlightSurvey, onSelect }: MapViewP
           />
         )}
 
-        {coords.length > 0 && <FitBounds coords={coords} />}
+        {/* Fit all parcels in view on load */}
+        {!highlightSurvey && coords.length > 0 && <FitBounds coords={coords} />}
 
-        {parcels.map((parcel, i) => {
-          const [lat, lng] = coords[i];
+        {/* Auto-fly + zoom to highlighted parcel */}
+        {highlightSurvey && <FlyToParcel parcels={parcels} highlightSurvey={highlightSurvey} />}
+
+        {parcels.map((parcel) => {
+          const [lat, lng] = getCenterFromGeoJSON(parcel);
           const isHighlighted = parcel.survey_number === highlightSurvey;
-          const polygon = makePolygon(lat, lng, isHighlighted ? 0.005 : 0.003);
+          // Use real GeoJSON polygon if available, else generate a small square
+          const realPolygon = getPolygonFromGeoJSON(parcel);
+          const polygon: LatLngTuple[] = realPolygon ?? [
+            [lat + 0.002, lng - 0.002],
+            [lat + 0.002, lng + 0.002],
+            [lat - 0.002, lng + 0.002],
+            [lat - 0.002, lng - 0.002],
+          ];
           const lc = (parcel as Parcel & { land_classification?: string }).land_classification;
           const colors = getLandColor(lc);
           const circleRate = (parcel as Parcel & { circle_rate_per_sqm?: number }).circle_rate_per_sqm;
           const estimatedValue = circleRate && parcel.area
-            ? Math.round(parcel.area * 10000 * circleRate)  // area in hectares → sq.m
+            ? Math.round(parcel.area * 10000 * circleRate)
             : null;
 
           return (
@@ -169,8 +201,8 @@ export default function MapView({ parcels, highlightSurvey, onSelect }: MapViewP
                 pathOptions={{
                   color: isHighlighted ? '#f59e0b' : colors.stroke,
                   fillColor: isHighlighted ? '#fde68a' : colors.fill,
-                  fillOpacity: isHighlighted ? 0.7 : 0.5,
-                  weight: isHighlighted ? 4 : 2,
+                  fillOpacity: isHighlighted ? 0.75 : 0.5,
+                  weight: isHighlighted ? 5 : 2,
                   dashArray: isHighlighted ? undefined : '0',
                 }}
                 eventHandlers={{ click: () => onSelect?.(parcel) }}
@@ -181,7 +213,7 @@ export default function MapView({ parcels, highlightSurvey, onSelect }: MapViewP
                       <span className="text-base">{colors.emoji}</span>
                       <div>
                         <p className="font-bold text-slate-800">Survey #{parcel.survey_number}</p>
-                        <p className="text-xs text-slate-500">{parcel.village}</p>
+                        <p className="text-xs text-slate-500">{parcel.village}, {(parcel as Parcel & { district?: string }).district}</p>
                       </div>
                     </div>
                     {lc && (
@@ -209,6 +241,11 @@ export default function MapView({ parcels, highlightSurvey, onSelect }: MapViewP
                         <p className="text-xs text-blue-600 font-medium">Estimated Minimum Value</p>
                         <p className="font-bold text-blue-800">₹{estimatedValue.toLocaleString('en-IN')}</p>
                         <p className="text-xs text-blue-400">Based on government circle rate</p>
+                      </div>
+                    )}
+                    {isHighlighted && (
+                      <div className="bg-amber-50 border border-amber-300 rounded p-2 mt-1 text-xs text-amber-700 font-semibold">
+                        📍 This parcel is linked to your document
                       </div>
                     )}
                   </div>
@@ -244,3 +281,5 @@ export default function MapView({ parcels, highlightSurvey, onSelect }: MapViewP
     </div>
   );
 }
+
+
