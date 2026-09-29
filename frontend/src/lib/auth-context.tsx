@@ -44,8 +44,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const t = localStorage.getItem('bhoomi_token');
       const u = localStorage.getItem('bhoomi_user');
       if (t && u) {
+        const parsed = JSON.parse(u);
         setToken(t);
-        setUser(JSON.parse(u));
+        setUser(parsed);
+        // Re-set cookie so middleware keeps working after page refresh
+        document.cookie = `bhoomi_user=${encodeURIComponent(u)}; path=/; max-age=86400; SameSite=Lax`;
       }
     } catch { /* ignore */ }
     finally { setIsLoading(false); }
@@ -70,10 +73,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginAsDemo = useCallback(async (role: 'admin' | 'officer' | 'verifier' | 'citizen' = 'admin') => {
     // Use real seeded backend credentials so JWT passes server validation
     const DEMO_CREDS: Record<string, { email: string; password: string }> = {
-      admin:    { email: 'admin@bhoomi.gov.in',   password: 'admin123' },
-      officer:  { email: 'officer@bhoomi.gov.in', password: 'officer123' },
-      verifier: { email: 'officer@bhoomi.gov.in', password: 'officer123' },
-      citizen:  { email: 'citizen@example.com',   password: 'citizen123' },
+      admin:    { email: 'admin@bhoomi.gov.in',    password: 'admin123'    },
+      officer:  { email: 'officer@bhoomi.gov.in',  password: 'officer123'  },
+      verifier: { email: 'verifier@bhoomi.gov.in', password: 'verifier123' },
+      citizen:  { email: 'citizen@example.com',    password: 'citizen123'  },
     };
     try {
       await login(DEMO_CREDS[role].email, DEMO_CREDS[role].password);
