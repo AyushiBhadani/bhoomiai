@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 #  FALLBACK demo text used when Tesseract is unavailable 
 FALLBACK_OCR_TEXT = (
-    "Owner: Demo User\n"
+    "Owner: Ramesh Kumar Sharma\n"
     "Survey No: 124/7\n"
     "Khasra: 45A\n"
     "Area: 2.5 acres\n"
