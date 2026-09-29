@@ -54,7 +54,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/verify',
     label: 'Verify Records',
     icon: <CheckSquare size={17} />,
-    roles: ['admin', 'verifier'],
+    roles: ['admin', 'officer', 'verifier'],
     badge: 'Pending',
     badgeColor: 'text-amber-400 bg-amber-500/20 border-amber-500/30',
   },
@@ -120,7 +120,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/integrations',
     label: 'Gov Integrations',
     icon: <Globe2 size={17} />,
-    roles: ['admin', 'officer', 'verifier'],
+    roles: ['admin'],
     badge: 'Live',
     badgeColor: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30',
   },
@@ -134,7 +134,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/agent',
     label: 'AI Agent',
     icon: <Bot size={17} />,
-    roles: ['admin', 'officer', 'verifier'],
+    roles: ['admin', 'officer'],
     badge: 'AI',
     badgeColor: 'text-purple-400 bg-purple-500/20 border-purple-500/30',
   },
@@ -148,7 +148,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/demo',
     label: 'Demo Flow',
     icon: <PlayCircle size={17} />,
-    roles: ['admin', 'officer', 'verifier'],
+    roles: ['admin'],
   },
 ];
 
@@ -156,6 +156,7 @@ const ROLE_META: Record<string, { label: string; color: string }> = {
   admin:    { label: 'Administrator',       color: 'text-emerald-300 bg-emerald-500/20 border-emerald-500/30' },
   officer:  { label: 'Land Record Officer', color: 'text-blue-300 bg-blue-500/20 border-blue-500/30' },
   verifier: { label: 'Verifier',            color: 'text-amber-300 bg-amber-500/20 border-amber-500/30' },
+  citizen:  { label: 'Citizen',             color: 'text-slate-300 bg-slate-500/20 border-slate-500/30' },
 };
 
 export default function Sidebar() {
@@ -190,6 +191,34 @@ export default function Sidebar() {
     }
     return item.badge;
   };
+
+  // ── Citizen: show minimal sidebar ─────────────────────────────────────────
+  if (user?.role === 'citizen') {
+    return (
+      <aside className="w-64 bg-slate-900 flex flex-col h-full">
+        <div className="px-4 py-5 border-b border-slate-800">
+          <span className="font-black text-white text-lg">Bhoomi<span className="text-emerald-400">AI</span></span>
+          <p className="text-slate-400 text-xs mt-1">Citizen Portal</p>
+        </div>
+        <nav className="flex-1 px-3 py-4">
+          <Link href="/citizen" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">
+            <Users size={17} /> Public Search
+          </Link>
+          <Link href="/citizen/dashboard" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">
+            <LayoutDashboard size={17} /> My Records
+          </Link>
+        </nav>
+        <div className="border-t border-slate-800 p-3">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all text-sm font-medium"
+          >
+            <LogOut size={15} /> Sign Out
+          </button>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside

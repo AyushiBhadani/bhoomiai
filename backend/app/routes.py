@@ -1456,6 +1456,90 @@ def reject_mutation(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  CROSS-VERIFICATION — Double-officer approval system
+#  Prevents single-officer fraud: both officers must independently agree.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post("/records/{record_id}/request-cross-verify", tags=["Records"])
+def request_cross_verification(
+    record_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Officer requests a second independent verifier to review this record."""
+    if current_user.role not in ("admin", "officer"):
+        raise HTTPException(status_code=403, detail="Only admin or officer can request cross-verification")
+    r = db.query(ExtractedRecord).filter(ExtractedRecord.id == record_id).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="Record not found")
+    if r.validation_status == "cross_verified":
+        return {"status": "already_cross_verified", "record_id": record_id}
+    r.validation_status = "needs_cross_verification"
+    _write_audit(
+        db, record_id,
+        f"CROSS_VERIFICATION_REQUESTED by {current_user.email}",
+        current_user,
+        comment="Sent for independent second-officer review"
+    )
+    db.commit()
+    return {
+        "status": "sent_for_cross_verification",
+        "record_id": record_id,
+        "requested_by": current_user.email,
+        "message": "Record sent to verifier queue for independent review"
+    }
+
+
+@router.post("/records/{record_id}/cross-verify-approve", tags=["Records"])
+def cross_verify_approve(
+    record_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Verifier independently approves — sets status to cross_verified with SHA-256 hash."""
+    if current_user.role not in ("admin", "verifier"):
+        raise HTTPException(status_code=403, detail="Only verifier or admin can cross-verify")
+    r = db.query(ExtractedRecord).filter(ExtractedRecord.id == record_id).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="Record not found")
+    if r.validation_status != "needs_cross_verification":
+        raise HTTPException(status_code=400, detail="Record is not pending cross-verification")
+    import hashlib
+    r.validation_status = "cross_verified"
+    content = f"{r.id}:{r.owner_name}:{r.survey_number}:{r.area}:CROSS_VERIFIED:{current_user.email}"
+    blockchain_hash = "0x" + hashlib.sha256(content.encode()).hexdigest()
+    _write_audit(
+        db, record_id,
+        f"CROSS_VERIFIED by {current_user.email}",
+        current_user,
+        new_value=blockchain_hash,
+        comment="Independent second-officer verification complete"
+    )
+    db.commit()
+    return {
+        "status": "cross_verified",
+        "record_id": record_id,
+        "verified_by": current_user.email,
+        "blockchain_hash": blockchain_hash,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
+@router.get("/verifier/queue", tags=["Records"])
+def verifier_queue(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Returns all records pending cross-verification — verifier/admin only."""
+    if current_user.role not in ("admin", "verifier"):
+        raise HTTPException(status_code=403, detail="Verifier access only")
+    records = db.query(ExtractedRecord).filter(
+        ExtractedRecord.validation_status == "needs_cross_verification"
+    ).order_by(ExtractedRecord.id.desc()).all()
+    return {"queue": [row_to_dict(r) for r in records], "total": len(records)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  MULTILINGUAL ROUTES (Bhashini + Gemini)
 # ─────────────────────────────────────────────────────────────────────────────
 

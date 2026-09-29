@@ -20,7 +20,7 @@ interface AuthContextValue {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  loginAsDemo: (role?: 'admin' | 'officer' | 'verifier') => void;
+  loginAsDemo: (role?: 'admin' | 'officer' | 'verifier' | 'citizen') => void;
   logout: () => void;
 }
 
@@ -30,6 +30,7 @@ const DEMO_USERS: Record<string, User> = {
   admin:    { id: 1, email: 'admin@bhoomi.gov.in',    role: 'admin'    },
   officer:  { id: 2, email: 'officer@bhoomi.gov.in',  role: 'officer'  },
   verifier: { id: 3, email: 'verifier@bhoomi.gov.in', role: 'verifier' },
+  citizen:  { id: 4, email: 'citizen@example.com',    role: 'citizen'  },
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -53,6 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const persistSession = useCallback((u: User, t: string) => {
     localStorage.setItem('bhoomi_token', t);
     localStorage.setItem('bhoomi_user', JSON.stringify(u));
+    // Set cookie so Next.js Edge middleware can read auth state
+    document.cookie = `bhoomi_user=${encodeURIComponent(JSON.stringify(u))}; path=/; max-age=86400; SameSite=Lax`;
     setToken(t);
     setUser(u);
   }, []);
@@ -64,12 +67,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     persistSession(userData, access_token);
   }, [persistSession]);
 
-  const loginAsDemo = useCallback(async (role: 'admin' | 'officer' | 'verifier' = 'admin') => {
+  const loginAsDemo = useCallback(async (role: 'admin' | 'officer' | 'verifier' | 'citizen' = 'admin') => {
     // Use real seeded backend credentials so JWT passes server validation
     const DEMO_CREDS: Record<string, { email: string; password: string }> = {
       admin:    { email: 'admin@bhoomi.gov.in',   password: 'admin123' },
       officer:  { email: 'officer@bhoomi.gov.in', password: 'officer123' },
       verifier: { email: 'officer@bhoomi.gov.in', password: 'officer123' },
+      citizen:  { email: 'citizen@example.com',   password: 'citizen123' },
     };
     try {
       await login(DEMO_CREDS[role].email, DEMO_CREDS[role].password);
@@ -82,6 +86,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem('bhoomi_token');
     localStorage.removeItem('bhoomi_user');
+    // Clear cookie so middleware immediately denies access
+    document.cookie = 'bhoomi_user=; path=/; max-age=0';
     setToken(null);
     setUser(null);
   }, []);
